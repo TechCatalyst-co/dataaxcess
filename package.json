@@ -1,0 +1,10 @@
+{
+  "name": "dataaxcess",
+  "private": true,
+  "type": "module",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev:api": "npm run dev -w @dataaxcess/api",
+    "dev:web": "npm run dev -w @dataaxcess/web"
+  }
+}

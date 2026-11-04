@@ -1,4 +1,13 @@
+@import "tailwindcss";
+
 #root { min-height: 100vh; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
 .page { position: relative; isolation: isolate; min-height: 100vh; overflow: hidden; padding: 0 clamp(24px, 7vw, 112px); background: radial-gradient(ellipse at 77% 28%, rgba(219, 237, 228, .7), transparent 30%), #f5f7f6; }
 .page::before { position: absolute; z-index: -1; content: ''; inset: 0; opacity: .25; pointer-events: none; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.08'/%3E%3C/svg%3E"); }
 .topbar { height: 86px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e4e9e5; }
@@ -8,9 +17,9 @@
 .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #4b997c; box-shadow: 0 0 0 4px #e1eee7; }
 .welcome { max-width: 670px; margin: 92px auto 0; text-align: center; }
 .eyebrow { color: #568570; font-size: 10px; font-weight: 700; letter-spacing: .16em; }
-h1, h2, h3, p { margin-top: 0; }
-h1, h2, h3 { font-family: Manrope, sans-serif; }
-h1 { max-width: 610px; margin: 18px auto 13px; font-size: clamp(35px, 5vw, 54px); line-height: 1.11; letter-spacing: -2.7px; font-weight: 600; color: #1c2e29; }
+.welcome h1, h2, h3, p { margin-top: 0; }
+.welcome h1, h2, h3 { font-family: Manrope, sans-serif; }
+.welcome h1 { max-width: 610px; margin: 18px auto 13px; font-size: clamp(35px, 5vw, 54px); line-height: 1.11; letter-spacing: -2.7px; font-weight: 600; color: #1c2e29; }
 .intro { max-width: 410px; margin: 0 auto; color: #75827c; font-size: 15px; line-height: 1.7; }
 .login-card { width: min(100%, 420px); margin: 38px auto 0; padding: 29px 32px 23px; text-align: left; border: 1px solid #e3e9e4; border-radius: 12px; background: rgba(255,255,255,.82); box-shadow: 0 18px 48px rgba(35, 67, 53, .07); }
 .card-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }

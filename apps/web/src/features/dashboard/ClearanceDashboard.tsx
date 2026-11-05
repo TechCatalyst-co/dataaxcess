@@ -1,144 +1,58 @@
 import React, { useState, useEffect } from 'react'
-import type {
-  ClearanceMetrics,
-  TrendDataPoint,
-  OperationalAccuracyData,
-  SalesActivityItem,
-} from './types'
+import type { TrendDataPoint } from './types'
+import {
+  useRegisteredUsers,
+  useTotalClearanceValue,
+  useVerifiedInvoices,
+  usePendingInvoices,
+  useVolumeTrend,
+  useOperationalAccuracy,
+  useRecentSalesActivity,
+} from './useClearanceMetrics'
 
-// ============================================================================
-// SAMPLE DATASETS WITH EXPLICIT CODE-LEVEL TODO CONTRACTS
-// ============================================================================
-
-/**
- * // TODO [Backend Query]: Fetch total registered customs team members,
- * // total clearance value (sum of total sales), verified invoices count,
- * // and pending invoices count from /api/invoices/analytics summary endpoint.
- */
-const INITIAL_METRICS: ClearanceMetrics = {
-  registeredUsers: 8,
-  registeredUsersSubtitle: 'Active Customs Team',
-  totalClearanceValueUsd: 7884405,
-  totalClearanceValueSubtitle: 'Aggregate Customs USD',
-  verifiedInvoices: 0,
-  clearanceAccuracyPercentage: 0.0,
-  pendingInvoices: 4232,
-  pendingInvoicesSubtitle: 'Awaiting Agency Audit',
-}
-
-/**
- * // TODO [Backend Aggregation]: Implement time-series aggregation endpoint
- * // (/api/invoices/volume-trend) returning monthly clearance volume grouped by invoice saleDate.
- */
-const TREND_POINTS: TrendDataPoint[] = [
-  { month: 'DEC', value: 3 },
-  { month: 'JAN', value: 3 },
-  { month: 'FEB', value: 4 },
-  { month: 'MAR', value: 24 },
-  { month: 'APR', value: 36 },
-  { month: 'MAY', value: 42 },
-  { month: 'JUN', value: 50 },
-  { month: 'JUL', value: 68 },
-  { month: 'AUG', value: 72 },
-  { month: 'SEP', value: 77 },
-  { month: 'OCT', value: 85 },
-  { month: 'NOV', value: 100 },
-  { month: 'ACTIVE', value: 46, isActive: true },
-]
-
-/**
- * // TODO [Backend Metrics]: Calculate real-time prevalidation distributions
- * // from compliance audit records to bind dynamic progress bar widths and status badge.
- */
-const ACCURACY_DATA: OperationalAccuracyData = {
-  statusBadge: 'TARGET MET',
-  items: [
-    {
-      id: 'anam-verified',
-      label: 'ANAM Customs Verified Clearance',
-      percentage: 0,
-      targetLabel: '0%',
-      barColor: 'green',
-    },
-    {
-      id: 'pending-approvals',
-      label: 'Pending Customs Approvals',
-      percentage: 100,
-      targetLabel: '100%',
-      barColor: 'orange',
-    },
-    {
-      id: 'compliance-rate',
-      label: 'Compliance Verification Rate',
-      percentage: 98.5,
-      targetLabel: '98.5% Target',
-      barColor: 'blue',
-    },
-  ],
-}
-
-/**
- * // TODO [Backend Query & Pagination]: Replace mock invoice rows with real records
- * // fetched from /api/invoices?limit=5&sort=desc; add pagination or link to full ledger.
- */
-const SALES_ACTIVITY_ROWS: SalesActivityItem[] = [
-  {
-    invoiceId: '9400',
-    date: '2026-11-04',
-    vehicleYear: 2017,
-    vehicleMake: 'Nissan',
-    vehicleModel: 'Sentra',
-    buyer: 'SOCIEDAD DE COMERCIANTES UNIDOS EN VENTA DE AUTOMOVILES SA DE CV',
-    amount: 800,
-    status: 'PENDING',
-  },
-  {
-    invoiceId: '9401',
-    date: '2026-11-04',
-    vehicleYear: 2022,
-    vehicleMake: 'Honda',
-    vehicleModel: 'HR-V',
-    buyer: 'SOCIEDAD DE COMERCIANTES UNIDOS EN VENTA DE AUTOMOVILES SA DE CV',
-    amount: 2535,
-    status: 'PENDING',
-  },
-  {
-    invoiceId: '9402',
-    date: '2026-11-04',
-    vehicleYear: 2022,
-    vehicleMake: 'Ford',
-    vehicleModel: 'Bronco',
-    buyer: 'SOCIEDAD DE COMERCIANTES UNIDOS EN VENTA DE AUTOMOVILES SA DE CV',
-    amount: 2535,
-    status: 'PENDING',
-  },
-  {
-    invoiceId: '9403',
-    date: '2026-11-04',
-    vehicleYear: 2020,
-    vehicleMake: 'Subaru',
-    vehicleModel: 'Outback',
-    buyer: 'SOCIEDAD DE COMERCIANTES UNIDOS EN VENTA DE AUTOMOVILES SA DE CV',
-    amount: 1740,
-    status: 'PENDING',
-  },
-  {
-    invoiceId: '9404',
-    date: '2026-11-04',
-    vehicleYear: 2022,
-    vehicleMake: 'Honda',
-    vehicleModel: 'Civic',
-    buyer: 'SOCIEDAD DE COMERCIANTES UNIDOS EN VENTA DE AUTOMOVILES SA DE CV',
-    amount: 1875,
-    status: 'PENDING',
-  },
-]
-
-export const ClearanceDashboard: React.FC = () => {
+export const ClearanceDashboard: React.FC<{ onViewAllInvoices?: () => void }> = ({
+  onViewAllInvoices,
+}) => {
   const [currentDateTime, setCurrentDateTime] = useState('')
   const [fromDate, setFromDate] = useState('2024-01-01')
   const [toDate, setToDate] = useState('2026-12-31')
   const [hoveredTrend, setHoveredTrend] = useState<TrendDataPoint | null>(null)
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null)
+
+  const registeredUsersQuery = useRegisteredUsers()
+  const totalClearanceValueQuery = useTotalClearanceValue()
+  const verifiedInvoicesQuery = useVerifiedInvoices()
+  const pendingInvoicesQuery = usePendingInvoices()
+  const trendQuery = useVolumeTrend(fromDate, toDate)
+  const accuracyQuery = useOperationalAccuracy()
+  const activityQuery = useRecentSalesActivity(5)
+
+  const loading =
+    registeredUsersQuery.isLoading ||
+    totalClearanceValueQuery.isLoading ||
+    verifiedInvoicesQuery.isLoading ||
+    pendingInvoicesQuery.isLoading ||
+    trendQuery.isLoading ||
+    accuracyQuery.isLoading ||
+    activityQuery.isLoading
+  const error =
+    registeredUsersQuery.error ??
+    totalClearanceValueQuery.error ??
+    verifiedInvoicesQuery.error ??
+    pendingInvoicesQuery.error ??
+    trendQuery.error ??
+    accuracyQuery.error ??
+    activityQuery.error
+
+  const totalClearanceValue = totalClearanceValueQuery.data ?? 0
+  const verifiedInvoices = verifiedInvoicesQuery.data ?? 0
+  const pendingInvoices = pendingInvoicesQuery.data ?? 0
+  const totalInvoices = verifiedInvoices + pendingInvoices
+  const clearanceAccuracyPercentage =
+    totalInvoices === 0 ? 0 : (verifiedInvoices / totalInvoices) * 100
+  const trendData = trendQuery.data ?? []
+  const accuracyItems = accuracyQuery.data?.items ?? []
+  const activityRows = activityQuery.data ?? []
 
   useEffect(() => {
     const updateDateTime = () => {
@@ -178,17 +92,18 @@ export const ClearanceDashboard: React.FC = () => {
   const paddingY = 20
   const availableWidth = chartWidth - paddingX * 2
   const availableHeight = chartHeight - paddingY * 2
-  const maxVal = 100
+  const maxVal = trendData.length > 0 ? Math.max(1, ...trendData.map((pt) => pt.value)) : 100
 
   const getCoordinates = (index: number, value: number) => {
-    const x = paddingX + (index / (TREND_POINTS.length - 1)) * availableWidth
+    const denominator = trendData.length > 1 ? trendData.length - 1 : 1
+    const x = paddingX + (index / denominator) * availableWidth
     const y = chartHeight - paddingY - (value / maxVal) * availableHeight
     return { x, y }
   }
 
-  const points = TREND_POINTS.map((pt, idx) => getCoordinates(idx, pt.value))
+  const points = trendData.map((pt, idx) => getCoordinates(idx, pt.value))
 
-  let linePath = `M ${points[0].x} ${points[0].y}`
+  let linePath = points.length > 0 ? `M ${points[0].x} ${points[0].y}` : ''
   for (let i = 0; i < points.length - 1; i++) {
     const current = points[i]
     const next = points[i + 1]
@@ -196,7 +111,10 @@ export const ClearanceDashboard: React.FC = () => {
     linePath += ` Q ${current.x} ${current.y}, ${midX} ${(current.y + next.y) / 2} T ${next.x} ${next.y}`
   }
 
-  const areaPath = `${linePath} L ${points[points.length - 1].x} ${chartHeight - paddingY} L ${points[0].x} ${chartHeight - paddingY} Z`
+  const areaPath =
+    points.length > 0
+      ? `${linePath} L ${points[points.length - 1].x} ${chartHeight - paddingY} L ${points[0].x} ${chartHeight - paddingY} Z`
+      : ''
 
   return (
     <div className="flex-1 bg-slate-50 min-h-screen px-6 py-8 overflow-y-auto font-sans text-slate-900">
@@ -218,19 +136,31 @@ export const ClearanceDashboard: React.FC = () => {
         </div>
       </header>
 
+      {loading && (
+        <div className="mb-4 h-1 bg-slate-200 rounded overflow-hidden">
+          <div className="h-full bg-slate-400 animate-pulse" />
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 text-sm rounded">
+          Failed to load dashboard data: {error.message}
+        </div>
+      )}
+
       {/* KPI Metrics Strip */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
         {/* KPI 1: REGISTERED CUSTOMS TEAM */}
-        <div className="bg-white border border-slate-200 p-4 flex items-center justify-between">
+        <div className="bg-white border-2 border-slate-200 p-4 flex items-center justify-between shadow-sm">
           <div>
             <span className="text-xs font-medium text-slate-500">
-              Registered Customs Team
+              Registered Users
             </span>
             <div className="text-xl font-bold text-slate-900 mt-1 font-['Manrope',sans-serif] tabular-nums">
-              {INITIAL_METRICS.registeredUsers}
+              {registeredUsersQuery.data ?? 0}
             </div>
             <div className="text-xs text-slate-400 mt-1">
-              {INITIAL_METRICS.registeredUsersSubtitle}
+              Active Customs Team
             </div>
           </div>
           <div className="w-8 h-8 bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0">
@@ -241,16 +171,16 @@ export const ClearanceDashboard: React.FC = () => {
         </div>
 
         {/* KPI 2: TOTAL CLEARANCE VALUE */}
-        <div className="bg-white border border-slate-200 p-4 flex items-center justify-between">
+        <div className="bg-white border-2 border-slate-200 p-4 flex items-center justify-between shadow-sm">
           <div>
             <span className="text-xs font-medium text-slate-500">
               Total Clearance Value
             </span>
             <div className="text-xl font-bold text-slate-900 mt-1 font-['Manrope',sans-serif] tabular-nums">
-              {formatCurrency(INITIAL_METRICS.totalClearanceValueUsd)}
+              {formatCurrency(totalClearanceValue)}
             </div>
             <div className="text-xs text-slate-400 mt-1">
-              {INITIAL_METRICS.totalClearanceValueSubtitle}
+              Aggregate Customs USD
             </div>
           </div>
           <div className="w-8 h-8 bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0">
@@ -261,16 +191,16 @@ export const ClearanceDashboard: React.FC = () => {
         </div>
 
         {/* KPI 3: VERIFIED INVOICES */}
-        <div className="bg-white border border-slate-200 p-4 flex items-center justify-between">
+        <div className="bg-white border-2 border-slate-200 p-4 flex items-center justify-between shadow-sm">
           <div>
             <span className="text-xs font-medium text-slate-500">
               Verified Invoices
             </span>
             <div className="text-xl font-bold text-slate-900 mt-1 font-['Manrope',sans-serif] tabular-nums">
-              {INITIAL_METRICS.verifiedInvoices}
+              {verifiedInvoices}
             </div>
             <div className="text-xs text-slate-400 mt-1">
-              {INITIAL_METRICS.clearanceAccuracyPercentage.toFixed(1)}% Clearance Accuracy
+              {clearanceAccuracyPercentage.toFixed(1)}% Clearance Accuracy
             </div>
           </div>
           <div className="w-8 h-8 bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0">
@@ -281,16 +211,16 @@ export const ClearanceDashboard: React.FC = () => {
         </div>
 
         {/* KPI 4: PENDING INVOICES */}
-        <div className="bg-white border border-slate-200 p-4 flex items-center justify-between">
+        <div className="bg-white border-2 border-slate-200 p-4 flex items-center justify-between shadow-sm">
           <div>
             <span className="text-xs font-medium text-slate-500">
               Pending Invoices
             </span>
             <div className="text-xl font-bold text-slate-900 mt-1 font-['Manrope',sans-serif] tabular-nums">
-              {formatNumber(INITIAL_METRICS.pendingInvoices)}
+              {formatNumber(pendingInvoices)}
             </div>
             <div className="text-xs text-slate-400 mt-1">
-              {INITIAL_METRICS.pendingInvoicesSubtitle}
+              Awaiting Agency Audit
             </div>
           </div>
           <div className="w-8 h-8 bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0">
@@ -304,7 +234,7 @@ export const ClearanceDashboard: React.FC = () => {
       {/* Analytics Middle Row */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-8">
         {/* Middle Left: Clearance Volume Trend */}
-        <div className="lg:col-span-7 bg-white border border-slate-200 p-4 flex flex-col justify-between">
+        <div className="lg:col-span-7 bg-white border-2 border-slate-200 p-4 flex flex-col justify-between shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <div>
               <h2 className="text-sm font-bold text-slate-900 font-['Manrope',sans-serif]">
@@ -352,59 +282,67 @@ export const ClearanceDashboard: React.FC = () => {
           </div>
 
           <div className="w-full relative mt-2">
-            <svg
-              viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-              className="w-full h-44 overflow-visible"
-            >
-              <line
-                x1={paddingX}
-                y1={chartHeight - paddingY}
-                x2={chartWidth - paddingX}
-                y2={chartHeight - paddingY}
-                stroke="#e2e8f0"
-                strokeWidth="1"
-              />
-              <path d={areaPath} fill="#dcf2ea" />
+            {trendData.length > 0 ? (
+              <svg
+                viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+                className="w-full h-44 overflow-visible"
+              >
+                <line
+                  x1={paddingX}
+                  y1={chartHeight - paddingY}
+                  x2={chartWidth - paddingX}
+                  y2={chartHeight - paddingY}
+                  stroke="#e2e8f0"
+                  strokeWidth="1"
+                />
+                <path d={areaPath} fill="#dcf2ea" />
 
-              <path
-                d={linePath}
-                fill="none"
-                stroke="#285442"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+                <path
+                  d={linePath}
+                  fill="none"
+                  stroke="#285442"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
 
-              <line
-                x1={points[points.length - 2].x}
-                y1={points[points.length - 2].y}
-                x2={points[points.length - 1].x}
-                y2={points[points.length - 1].y}
-                stroke="#d97706"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-              />
+                {points.length > 1 && (
+                  <line
+                    x1={points[points.length - 2].x}
+                    y1={points[points.length - 2].y}
+                    x2={points[points.length - 1].x}
+                    y2={points[points.length - 1].y}
+                    stroke="#d97706"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                )}
 
-              {TREND_POINTS.map((pt, idx) => {
-                const coord = getCoordinates(idx, pt.value)
-                const isAct = pt.isActive
-                return (
-                  <g key={pt.month}>
-                    <circle
-                      cx={coord.x}
-                      cy={coord.y}
-                      r={isAct ? 7 : 6}
-                      fill={isAct ? '#d97706' : '#285442'}
-                      stroke="#ffffff"
-                      strokeWidth="2"
-                      style={{ cursor: 'pointer' }}
-                      onMouseEnter={() => setHoveredTrend(pt)}
-                      onMouseLeave={() => setHoveredTrend(null)}
-                    />
-                  </g>
-                )
-              })}
-            </svg>
+                {trendData.map((pt, idx) => {
+                  const coord = getCoordinates(idx, pt.value)
+                  const isAct = pt.isActive
+                  return (
+                    <g key={pt.month}>
+                      <circle
+                        cx={coord.x}
+                        cy={coord.y}
+                        r={isAct ? 7 : 6}
+                        fill={isAct ? '#d97706' : '#285442'}
+                        stroke="#ffffff"
+                        strokeWidth="2"
+                        style={{ cursor: 'pointer' }}
+                        onMouseEnter={() => setHoveredTrend(pt)}
+                        onMouseLeave={() => setHoveredTrend(null)}
+                      />
+                    </g>
+                  )
+                })}
+              </svg>
+            ) : (
+              <div className="h-44 flex items-center justify-center text-slate-400 text-sm">
+                No trend data available
+              </div>
+            )}
 
             {hoveredTrend && (
               <div className="absolute top-1 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[11px] px-2.5 py-1 pointer-events-none">
@@ -413,7 +351,7 @@ export const ClearanceDashboard: React.FC = () => {
             )}
 
             <div className="flex justify-between items-center px-4 mt-1 text-[10px] font-medium text-slate-400 tracking-tight">
-              {TREND_POINTS.map((pt) => (
+              {trendData.map((pt) => (
                 <span
                   key={pt.month}
                   className={pt.isActive ? 'text-slate-700 font-bold' : 'text-slate-400'}
@@ -426,14 +364,14 @@ export const ClearanceDashboard: React.FC = () => {
         </div>
 
         {/* Middle Right: Operational Accuracy */}
-        <div className="lg:col-span-5 bg-white border border-slate-200 p-4 flex flex-col justify-between">
+        <div className="lg:col-span-5 bg-white border-2 border-slate-200 p-4 flex flex-col justify-between shadow-sm">
           <div>
             <h2 className="text-sm font-bold text-slate-900 font-['Manrope',sans-serif] mb-4">
               Operational Accuracy
             </h2>
 
-            <div className="flex flex-col gap-4 mt-4">
-              {ACCURACY_DATA.items.map((item) => (
+            <div className="flex flex-col justify-between flex-1 gap-10 mt-8">
+              {accuracyItems.map((item) => (
                 <div key={item.id}>
                   <div className="flex justify-between text-xs font-medium text-slate-700 mb-1.5">
                     <span className="text-xs">{item.label}</span>
@@ -442,10 +380,7 @@ export const ClearanceDashboard: React.FC = () => {
                     </span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-200 overflow-hidden">
-                    <div
-                      className="h-full bg-[#285442]"
-                      style={{ width: `${item.percentage}%` }}
-                    />
+                    <div className="h-full bg-[#285442]" style={{ width: `${item.percentage}%` }} />
                   </div>
                 </div>
               ))}
@@ -454,19 +389,22 @@ export const ClearanceDashboard: React.FC = () => {
         </div>
       </section>
 
-      {/* Bottom Row: Recent Clearance Activity */}
-      <section className="bg-white border border-slate-200">
+      {/* Bottom Row: Latest Sales Activity */}
+      <section className="bg-white border-2 border-slate-200 shadow-sm">
         <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
             </svg>
             <h2 className="text-sm font-bold text-slate-900 font-['Manrope',sans-serif]">
-              Recent Clearance Activity
+              Latest Sales Activity
             </h2>
           </div>
 
-          <span className="text-xs font-medium text-slate-500 hover:text-slate-900 cursor-pointer">
+          <span
+            className="text-xs font-medium text-slate-500 hover:text-slate-900 cursor-pointer"
+            onClick={onViewAllInvoices}
+          >
             View all activity
           </span>
         </div>
@@ -484,8 +422,12 @@ export const ClearanceDashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
-              {SALES_ACTIVITY_ROWS.map((row) => (
-                <tr key={row.invoiceId} className="hover:bg-slate-50 transition-colors cursor-pointer">
+              {activityRows.map((row) => (
+                <tr
+                  key={row.invoiceId}
+                  className={`hover:bg-slate-50 transition-colors cursor-pointer ${row.invoiceId === selectedInvoiceId ? 'bg-slate-100' : ''}`}
+                  onClick={() => setSelectedInvoiceId(row.invoiceId)}
+                >
                   <td className="py-3 px-4 font-bold text-slate-900 tabular-nums">
                     {row.invoiceId}
                   </td>

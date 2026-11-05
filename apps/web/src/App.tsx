@@ -111,7 +111,14 @@ function App() {
         signingOut={signingOut}
       />
 
-      {activeView === 'dashboard' && <ClearanceDashboard />}
+      {activeView === 'dashboard' && (
+        <ClearanceDashboard
+          onViewAllInvoices={() => {
+            setActiveView('list')
+            setActiveNav('view_all_invoices')
+          }}
+        />
+      )}
 
       {activeView === 'list' && (
         <div className="flex-1 p-6 bg-slate-50 overflow-y-auto">

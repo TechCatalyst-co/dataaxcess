@@ -20,7 +20,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const handleLinkClick = (e: React.MouseEvent, navId: DashboardNavItemId) => {
     e.preventDefault()
-    // No links/buttons direct anywhere yet per specification; keep code-level TODO hooks
     if (onSelectNav) {
       onSelectNav(navId)
     }
@@ -48,7 +47,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
           <nav className="flex flex-col gap-1">
             {/* Overview / Analytics (Active) */}
-            {/* TODO [Routing]: Connect router navigation to the clearance analytics overview route once full page routing is enabled. */}
             <button
               type="button"
               onClick={(e) => handleLinkClick(e, 'overview')}
@@ -95,7 +93,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
           <nav className="flex flex-col gap-1">
             {/* + New Invoice */}
-            {/* TODO [Modal / Navigation]: Wire click handler to open the New Invoice creation modal or switch active view to InvoiceForm. */}
             <button
               type="button"
               onClick={(e) => handleLinkClick(e, 'new_invoice')}
@@ -114,7 +111,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
 
             {/* View All Invoices */}
-            {/* TODO [Navigation]: Wire click handler to switch active view to the full InvoiceLedger table. */}
             <button
               type="button"
               onClick={(e) => handleLinkClick(e, 'view_all_invoices')}
@@ -133,7 +129,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
 
             {/* Manage Team */}
-            {/* TODO [Routing & Permissions]: Create team management interface and wire navigation with admin authorization check. */}
             {userRole !== 'agent' && (
               <button
                 type="button"

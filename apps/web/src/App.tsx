@@ -104,6 +104,7 @@ function App() {
     <div className="flex min-h-screen bg-[#f8fafc] text-slate-800 antialiased font-sans">
       <Sidebar
         username={user.username}
+        userRole={user.role}
         activeNav={activeNav}
         onSelectNav={handleNavSelect}
         onSignOut={handleSignOut}

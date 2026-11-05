@@ -1,0 +1,1 @@
+ALTER TABLE `invoices` DROP INDEX `invoices_vin_unique`;

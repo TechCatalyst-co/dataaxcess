@@ -23,7 +23,7 @@ export const sessions = mysqlTable("sessions", {
 export const invoices = mysqlTable("invoices", {
   // identity
   invoiceNumber: varchar("invoice_number", { length: 50 }).primaryKey(),
-  vin: char("vin", { length: 17 }).notNull().unique(),
+  vin: char("vin", { length: 17 }).notNull(),
   vehicleStock: varchar("vehicle_stock", { length: 50 }),
   // vehicle
   year: int("year").notNull(),
@@ -56,4 +56,5 @@ export const invoices = mysqlTable("invoices", {
   index("invoices_title_status_idx").on(t.titleStatus),
   index("invoices_date_of_sale_idx").on(t.dateOfSale),
   index("invoices_buyer_type_idx").on(t.buyerType),
+  index("invoices_vin_idx").on(t.vin),
 ]);

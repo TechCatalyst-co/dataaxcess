@@ -5,6 +5,7 @@ import { SignInForm } from './features/auth/SignInForm'
 import type { User } from './features/auth/types'
 import { InvoiceLedger } from './features/invoices/InvoiceLedger'
 import { InvoiceForm } from './features/invoices/InvoiceForm'
+import { UserManagement } from './features/users/UserManagement'
 import { Sidebar } from './features/dashboard/Sidebar'
 import { ClearanceDashboard } from './features/dashboard/ClearanceDashboard'
 import type { DashboardNavItemId } from './features/dashboard/types'
@@ -14,8 +15,9 @@ function App() {
   const [checking, setChecking] = useState(true)
   const [message, setMessage] = useState('')
   const [signingOut, setSigningOut] = useState(false)
-  const [activeView, setActiveView] = useState<'dashboard' | 'list' | 'create'>('dashboard')
+  const [activeView, setActiveView] = useState<'dashboard' | 'list' | 'create' | 'team'>('dashboard')
   const [activeNav, setActiveNav] = useState<DashboardNavItemId>('overview')
+  const [unauthorizedNav, setUnauthorizedNav] = useState<DashboardNavItemId | null>(null)
 
   useEffect(() => {
     getSession().then(setUser)
@@ -39,6 +41,15 @@ function App() {
 
   const handleNavSelect = (navId: DashboardNavItemId) => {
     setActiveNav(navId)
+    setUnauthorizedNav(null)
+    if (navId === 'manage_team') {
+      if (!user || user.role !== 'admin') {
+        setUnauthorizedNav('manage_team')
+        return
+      }
+      setActiveView('team')
+      return
+    }
     if (navId === 'overview') {
       setActiveView('dashboard')
     } else if (navId === 'view_all_invoices') {
@@ -141,6 +152,32 @@ function App() {
               onCreated={() => { setActiveView('dashboard'); setActiveNav('overview') }}
               onCancel={() => { setActiveView('dashboard'); setActiveNav('overview') }}
             />
+          </div>
+        </div>
+      )}
+
+      {activeView === 'team' && (
+        <div className="flex-1 p-6 bg-slate-50 overflow-y-auto">
+          <div className="max-w-6xl mx-auto">
+            <UserManagement currentUserId={user?.id ?? null} onBack={() => { setActiveView('dashboard'); setActiveNav('overview') }} />
+          </div>
+        </div>
+      )}
+
+      {unauthorizedNav === 'manage_team' && (
+        <div className="flex-1 p-6 bg-slate-50 overflow-y-auto font-sans text-slate-900">
+          <div className="max-w-xl mx-auto">
+            <div className="bg-white border border-red-100 rounded-lg p-6 text-center" role="alert">
+              <h2 className="text-lg font-bold text-red-900 mb-2">Manage Team is restricted to administrators.</h2>
+              <p className="text-sm text-slate-600 mb-4">Your account does not have permission to manage team members.</p>
+              <button
+                type="button"
+                className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded transition-colors"
+                onClick={() => { setUnauthorizedNav(null); setActiveView('dashboard'); setActiveNav('overview') }}
+              >
+                Back to Clearance Analytics
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -8,6 +8,20 @@
       "when": 1793733459319,
       "tag": "0000_lethal_supernaut",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1793828520695,
+      "tag": "0001_dusty_boomer",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1793902393134,
+      "tag": "0002_confused_marvex",
+      "breakpoints": true
     }
   ]
 }

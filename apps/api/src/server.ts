@@ -7,6 +7,7 @@ import { pool } from "./db/index.js";
 import { registerSessionPlugin } from "./plugins/session.js";
 import { registerAuthRoutes, requireRole } from "./routes/auth.js";
 import { registerInvoiceRoutes } from "./routes/invoices.js";
+import { registerUsersRoutes } from "./routes/users.js";
 
 const app = Fastify({ logger: true, trustProxy: false });
 
@@ -22,6 +23,7 @@ await app.register(rateLimit, { global: false });
 registerSessionPlugin(app);
 await app.register(registerAuthRoutes);
 await app.register(registerInvoiceRoutes);
+await app.register(registerUsersRoutes);
 
 app.get("/health", async () => ({ ok: true }));
 app.get("/api/admin/check", { preHandler: requireRole("admin") }, async (request) => ({ ok: true, user: request.authUser }));

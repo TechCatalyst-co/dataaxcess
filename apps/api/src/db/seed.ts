@@ -17,7 +17,7 @@ if (!username || !password || password.length < 12) {
       await db.update(users).set({ passwordHash, role: "admin" }).where(eq(users.id, existing.id));
       console.log(`Updated admin "${username}"`);
     } else {
-      await db.insert(users).values({ username, passwordHash, role: "admin" });
+      await db.insert(users).values({ username, passwordHash, fullName: username, role: "admin" });
       console.log(`Created admin "${username}"`);
     }
   } finally {

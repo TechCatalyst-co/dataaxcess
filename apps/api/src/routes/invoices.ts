@@ -38,9 +38,17 @@ export async function registerInvoiceRoutes(app: FastifyInstance) {
         verified: "No",
       });
     } catch (error) {
-      const dbError = error as { code?: string; errno?: number };
-      if (dbError.code === "ER_DUP_ENTRY" || dbError.errno === 1062) {
-        return reply.code(409).send({ error: "An invoice with this invoice number or VIN already exists." });
+      const err = error as any;
+      const messages = [
+        err?.message,
+        err?.cause?.message,
+        err?.causedBy?.message,
+        err?.sqlMessage,
+        String(err),
+      ].filter(Boolean);
+      const combined = messages.join(" ").toLowerCase();
+      if (combined.includes("duplicate entry") && combined.includes("primary")) {
+        return reply.code(409).send({ error: "An invoice with this invoice number already exists." });
       }
       throw error;
     }

@@ -119,7 +119,7 @@ function App() {
             <div className="flex items-center justify-between mb-4">
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 py-1.5 px-3 bg-white border border-slate-200 cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 py-1.5 px-3 bg-white border border-slate-300 rounded shadow-sm transition-all cursor-pointer"
                 onClick={() => { setActiveView('dashboard'); setActiveNav('overview') }}
               >
                 ← Back to Clearance Analytics
@@ -143,7 +143,7 @@ function App() {
             <div className="flex items-center justify-between mb-4">
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 py-1.5 px-3 bg-white border border-slate-200 cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 py-1.5 px-3 bg-white border border-slate-300 rounded shadow-sm transition-all cursor-pointer"
                 onClick={() => { setActiveView('dashboard'); setActiveNav('overview') }}
               >
                 ← Back to Clearance Analytics

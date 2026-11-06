@@ -18,11 +18,14 @@ export const sessions = mysqlTable("sessions", {
   userId: int("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   expiresAt: datetime("expires_at").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  lastActivityAt: datetime("last_activity_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  endedAt: datetime("ended_at"),
 }, (t) => [index("sessions_user_idx").on(t.userId)]);
 
 export const invoices = mysqlTable("invoices", {
   // identity
   invoiceNumber: varchar("invoice_number", { length: 50 }).primaryKey(),
+  createdByUserId: int("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
   vin: char("vin", { length: 17 }).notNull(),
   vehicleStock: varchar("vehicle_stock", { length: 50 }),
   // vehicle
@@ -52,6 +55,7 @@ export const invoices = mysqlTable("invoices", {
   verified: varchar("verified", { length: 10 }).default("No"),
   reportDate: datetime("report_date").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [
+  index("invoices_created_by_user_id_idx").on(t.createdByUserId),
   index("invoices_year_idx").on(t.year),
   index("invoices_title_status_idx").on(t.titleStatus),
   index("invoices_date_of_sale_idx").on(t.dateOfSale),

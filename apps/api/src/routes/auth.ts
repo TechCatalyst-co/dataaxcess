@@ -26,7 +26,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     const token = randomBytes(32).toString("hex");
     const tokenHash = createHash("sha256").update(token).digest("hex");
     const expiresAt = new Date(Date.now() + sessionDurationMs);
-    await db.insert(sessions).values({ id: tokenHash, userId: user.id, expiresAt });
+    await db.insert(sessions).values({ id: tokenHash, userId: user.id, expiresAt, lastActivityAt: new Date() });
 
     reply.setCookie(cookieName, token, {
       path: "/",
@@ -42,13 +42,17 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     const token = request.cookies[cookieName];
     if (token) {
       const tokenHash = createHash("sha256").update(token).digest("hex");
-      await db.delete(sessions).where(eq(sessions.id, tokenHash));
+      await db.update(sessions).set({ endedAt: new Date() }).where(eq(sessions.id, tokenHash));
     }
     return reply.clearCookie(cookieName, { path: "/", secure: isProduction, sameSite: "strict" })
       .code(204).send();
   });
 
-  app.get("/api/auth/me", { preHandler: requireAuth }, async (request) => ({ user: request.authUser }));
+  app.get("/api/auth/me", { preHandler: requireAuth }, async (request) => {
+    const [user] = await db.select({ id: users.id, username: users.username, fullName: users.fullName, role: users.role })
+      .from(users).where(eq(users.id, request.authUser!.id)).limit(1);
+    return { user };
+  });
 }
 
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply) {

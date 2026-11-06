@@ -9,13 +9,14 @@ import { UserManagement } from './features/users/UserManagement'
 import { Sidebar } from './features/dashboard/Sidebar'
 import { ClearanceDashboard } from './features/dashboard/ClearanceDashboard'
 import type { DashboardNavItemId } from './features/dashboard/types'
+import { ComplianceAudit } from './features/compliance/ComplianceAudit'
 
 function App() {
   const [user, setUser] = useState<User | null>(null)
   const [checking, setChecking] = useState(true)
   const [message, setMessage] = useState('')
   const [signingOut, setSigningOut] = useState(false)
-  const [activeView, setActiveView] = useState<'dashboard' | 'list' | 'create' | 'team'>('dashboard')
+  const [activeView, setActiveView] = useState<'dashboard' | 'audit' | 'list' | 'create' | 'team'>('dashboard')
   const [activeNav, setActiveNav] = useState<DashboardNavItemId>('overview')
   const [unauthorizedNav, setUnauthorizedNav] = useState<DashboardNavItemId | null>(null)
 
@@ -52,6 +53,8 @@ function App() {
     }
     if (navId === 'overview') {
       setActiveView('dashboard')
+    } else if (navId === 'audit') {
+      setActiveView('audit')
     } else if (navId === 'view_all_invoices') {
       setActiveView('list')
     } else if (navId === 'new_invoice') {
@@ -119,6 +122,8 @@ function App() {
           }}
         />
       )}
+
+      {activeView === 'audit' && <ComplianceAudit user={user} />}
 
       {activeView === 'list' && (
         <div className="flex-1 p-6 bg-slate-50 overflow-y-auto">

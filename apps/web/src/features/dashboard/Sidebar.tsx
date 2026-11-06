@@ -65,8 +65,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </button>
 
-            {/* Compliance Audit (Inactive) */}
-            {/* TODO [Routing & View]: Create compliance audit page/view and attach navigation route to this link. */}
             <button
               type="button"
               onClick={(e) => handleLinkClick(e, 'audit')}

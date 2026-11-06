@@ -1,13 +1,62 @@
 import type { FastifyInstance } from "fastify";
-import { count, like, or, sql } from "drizzle-orm";
+import { count, desc, eq, like, or, sql } from "drizzle-orm";
 import { createInvoiceSchema } from "@dataaxcess/shared";
 import { db } from "../db/index.js";
-import { invoices } from "../db/schema.js";
+import { invoices, sessions, users } from "../db/schema.js";
 import { requireAuth } from "./auth.js";
 
 type InvoiceQuery = { q?: string; page?: string; pageSize?: string };
 
 export async function registerInvoiceRoutes(app: FastifyInstance) {
+  app.get("/api/compliance/audit", { preHandler: requireAuth }, async (request, reply) => {
+    const userId = request.authUser!.id;
+    const [user] = await db.select({ id: users.id, username: users.username, fullName: users.fullName, role: users.role })
+      .from(users).where(eq(users.id, userId)).limit(1);
+    const [session] = request.sessionId
+      ? await db.select({ createdAt: sessions.createdAt, lastActivityAt: sessions.lastActivityAt, expiresAt: sessions.expiresAt, endedAt: sessions.endedAt })
+        .from(sessions).where(eq(sessions.id, request.sessionId)).limit(1)
+      : [];
+    const [lastVin] = await db.select({
+      vin: invoices.vin,
+      year: invoices.year,
+      make: invoices.make,
+      model: invoices.model,
+      submittedAt: sql<string>`DATE_FORMAT(${invoices.reportDate}, '%Y-%m-%d %H:%i:%s')`,
+    })
+      .from(invoices).where(eq(invoices.createdByUserId, userId)).orderBy(desc(invoices.reportDate)).limit(1);
+    const [invoiceCounts] = await db.select({
+      total: count(),
+      verified: sql<number>`COALESCE(SUM(CASE WHEN LOWER(${invoices.verified}) = 'yes' THEN 1 ELSE 0 END), 0)`,
+      createdThisMonth: sql<number>`COALESCE(SUM(CASE WHEN ${invoices.reportDate} >= DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01') THEN 1 ELSE 0 END), 0)`,
+    }).from(invoices)
+      .where(eq(invoices.createdByUserId, userId));
+    if (!user) return reply.code(404).send({ error: "User not found" });
+    return {
+      user,
+      session: session ? {
+        loginAt: session.createdAt,
+        lastActivityAt: session.lastActivityAt,
+        expiresAt: session.expiresAt,
+        endedAt: session.endedAt,
+        status: session.endedAt ? "ended" : session.expiresAt > new Date() ? "active" : "expired",
+      } : null,
+      vinActivity: {
+        lastVin: lastVin?.vin ?? null,
+        lastVehicle: lastVin ? { year: lastVin.year, make: lastVin.make, model: lastVin.model } : null,
+        lastSubmittedAt: lastVin?.submittedAt ?? null,
+        submittedCount: Number(invoiceCounts.total),
+      },
+      invoiceActivity: {
+        createdThisMonth: Number(invoiceCounts.createdThisMonth),
+        pending: Number(invoiceCounts.total) - Number(invoiceCounts.verified),
+        verified: Number(invoiceCounts.verified),
+        verificationRate: Number(invoiceCounts.total) === 0
+          ? null
+          : Math.round((Number(invoiceCounts.verified) / Number(invoiceCounts.total)) * 100),
+      },
+    };
+  });
+
   app.post<{ Body: unknown }>("/api/invoices", {
     preHandler: requireAuth,
   }, async (request, reply) => {
@@ -18,6 +67,7 @@ export async function registerInvoiceRoutes(app: FastifyInstance) {
     try {
       await db.insert(invoices).values({
         invoiceNumber: input.invoiceNumber,
+        createdByUserId: request.authUser!.id,
         vin: input.vin,
         year: input.year,
         make: input.make,

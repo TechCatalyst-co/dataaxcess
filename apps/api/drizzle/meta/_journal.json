@@ -36,6 +36,13 @@
       "when": 1793910120287,
       "tag": "0004_dear_martin_li",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1794000000000,
+      "tag": "0005_compliance_audit_activity",
+      "breakpoints": true
     }
   ]
 }

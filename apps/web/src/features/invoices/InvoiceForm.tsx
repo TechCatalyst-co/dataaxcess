@@ -72,7 +72,7 @@ export function InvoiceForm({ onCreated, onCancel }: InvoiceFormProps) {
         </div>
       </section>
       {error && <p className="form-error" role="alert">{error}</p>}
-      <div className="form-actions"><button className="button secondary" type="button" onClick={onCancel} disabled={busy}>Cancel</button><button className="button primary compact" type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create invoice'}</button></div>
+      <div className="form-actions"><button className="button primary compact" type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create invoice'}</button><button className="button secondary" type="button" onClick={onCancel} disabled={busy}>Cancel</button></div>
     </form>
   )
 }

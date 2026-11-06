@@ -57,7 +57,7 @@ export function ResetPasswordForm({ open, onClose, onSave }: ResetPasswordFormPr
               maxLength={200}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-[#285442] outline-none"
+              className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-[#4c39f5] outline-none"
             />
             <p className="text-xs text-slate-500">Minimum 12 characters.</p>
           </div>
@@ -71,7 +71,7 @@ export function ResetPasswordForm({ open, onClose, onSave }: ResetPasswordFormPr
               maxLength={200}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-[#285442] outline-none"
+              className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-[#4c39f5] outline-none"
             />
           </div>
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
@@ -85,7 +85,7 @@ export function ResetPasswordForm({ open, onClose, onSave }: ResetPasswordFormPr
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-[#285442] hover:bg-[#1e4434] rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="px-4 py-2 text-sm font-medium text-white bg-[#4c39f5] hover:bg-[#3829cb] rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               disabled={busy}
             >
               {busy ? 'Resetting…' : 'Reset password'}

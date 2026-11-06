@@ -83,15 +83,15 @@ export function UserForm({ open, onClose, onSave, editingUser }: UserFormProps) 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
             <label className="block text-xs font-medium text-slate-700">Username <span className="text-red-500">*</span></label>
-            <input name="username" required maxLength={50} defaultValue={isCreate ? '' : editingUser?.username} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-[#285442] outline-none" />
+            <input name="username" required maxLength={50} defaultValue={isCreate ? '' : editingUser?.username} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-[#4c39f5] outline-none" />
           </div>
           <div className="space-y-2">
             <label className="block text-xs font-medium text-slate-700">Full name <span className="text-red-500">*</span></label>
-            <input name="fullName" required maxLength={100} defaultValue={isCreate ? '' : editingUser?.fullName} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-[#285442] outline-none" />
+            <input name="fullName" required maxLength={100} defaultValue={isCreate ? '' : editingUser?.fullName} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-[#4c39f5] outline-none" />
           </div>
           <div className="space-y-2">
             <label className="block text-xs font-medium text-slate-700">Role</label>
-            <select name="role" defaultValue={isCreate ? 'agent' : editingUser?.role} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-[#285442] outline-none bg-white">
+            <select name="role" defaultValue={isCreate ? 'agent' : editingUser?.role} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-[#4c39f5] outline-none bg-white">
               <option value="admin">Admin</option>
               <option value="agent">Agent</option>
             </select>
@@ -99,7 +99,7 @@ export function UserForm({ open, onClose, onSave, editingUser }: UserFormProps) 
           {isCreate && (
             <div className="space-y-2">
               <label className="block text-xs font-medium text-slate-700">Password <span className="text-red-500">*</span></label>
-              <input name="password" type="password" required minLength={12} maxLength={200} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-[#285442] outline-none" />
+              <input name="password" type="password" required minLength={12} maxLength={200} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-[#4c39f5] outline-none" />
               <p className="text-xs text-slate-500">Minimum 12 characters.</p>
             </div>
           )}
@@ -107,7 +107,7 @@ export function UserForm({ open, onClose, onSave, editingUser }: UserFormProps) 
             <button type="button" className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded transition-colors disabled:opacity-50" onClick={onClose} disabled={busy}>
               Cancel
             </button>
-            <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-[#285442] hover:bg-[#1e4434] rounded transition-colors disabled:opacity-50" disabled={busy}>
+            <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-[#4c39f5] hover:bg-[#3829cb] rounded transition-colors disabled:opacity-50" disabled={busy}>
               {busy ? 'Saving…' : isCreate ? 'Create user' : 'Save changes'}
             </button>
           </div>

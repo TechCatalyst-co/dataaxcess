@@ -292,15 +292,15 @@ export const ClearanceDashboard: React.FC<{ onViewAllInvoices?: () => void }> = 
                   y1={chartHeight - paddingY}
                   x2={chartWidth - paddingX}
                   y2={chartHeight - paddingY}
-                  stroke="#e2e8f0"
+                  stroke="#dfe6f0"
                   strokeWidth="1"
                 />
-                <path d={areaPath} fill="#dcf2ea" />
+                <path d={areaPath} fill="#eeecff" />
 
                 <path
                   d={linePath}
                   fill="none"
-                  stroke="#285442"
+                  stroke="#4c39f5"
                   strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -312,7 +312,7 @@ export const ClearanceDashboard: React.FC<{ onViewAllInvoices?: () => void }> = 
                     y1={points[points.length - 2].y}
                     x2={points[points.length - 1].x}
                     y2={points[points.length - 1].y}
-                    stroke="#d97706"
+                    stroke="#00b9cf"
                     strokeWidth="2.5"
                     strokeLinecap="round"
                   />
@@ -327,7 +327,7 @@ export const ClearanceDashboard: React.FC<{ onViewAllInvoices?: () => void }> = 
                         cx={coord.x}
                         cy={coord.y}
                         r={isAct ? 7 : 6}
-                        fill={isAct ? '#d97706' : '#285442'}
+                        fill={isAct ? '#00b9cf' : '#4c39f5'}
                         stroke="#ffffff"
                         strokeWidth="2"
                         style={{ cursor: 'pointer' }}
@@ -380,7 +380,7 @@ export const ClearanceDashboard: React.FC<{ onViewAllInvoices?: () => void }> = 
                     </span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-200 overflow-hidden">
-                    <div className="h-full bg-[#285442]" style={{ width: `${item.percentage}%` }} />
+                    <div className="h-full bg-[#4c39f5]" style={{ width: `${item.percentage}%` }} />
                   </div>
                 </div>
               ))}

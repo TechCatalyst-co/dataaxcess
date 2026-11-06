@@ -52,7 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={(e) => handleLinkClick(e, 'overview')}
               className={`flex items-center justify-between w-full px-3 py-2.5 text-xs font-semibold transition-colors cursor-pointer ${
                 activeNav === 'overview'
-                  ? 'bg-[#285442] text-white'
+                  ? 'bg-[#4c39f5] text-white'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
               title="Overview & Analytics Dashboard"
@@ -70,7 +70,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={(e) => handleLinkClick(e, 'audit')}
               className={`flex items-center justify-between w-full px-3 py-2.5 text-xs font-medium transition-colors cursor-pointer ${
                 activeNav === 'audit'
-                  ? 'bg-[#285442] text-white'
+                  ? 'bg-[#4c39f5] text-white'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
@@ -96,7 +96,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={(e) => handleLinkClick(e, 'new_invoice')}
               className={`flex items-center justify-between w-full px-3 py-2 text-xs font-medium transition-colors cursor-pointer ${
                 activeNav === 'new_invoice'
-                  ? 'bg-[#285442] text-white'
+                  ? 'bg-[#4c39f5] text-white'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
@@ -114,7 +114,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={(e) => handleLinkClick(e, 'view_all_invoices')}
               className={`flex items-center justify-between w-full px-3 py-2 text-xs font-medium transition-colors cursor-pointer ${
                 activeNav === 'view_all_invoices'
-                  ? 'bg-[#285442] text-white'
+                  ? 'bg-[#4c39f5] text-white'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
@@ -133,7 +133,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onClick={(e) => handleLinkClick(e, 'manage_team')}
                 className={`flex items-center justify-between w-full px-3 py-2 text-xs font-medium transition-colors cursor-pointer ${
                   activeNav === 'manage_team'
-                    ? 'bg-[#285442] text-white'
+                    ? 'bg-[#4c39f5] text-white'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
@@ -168,7 +168,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             type="button"
             onClick={onSignOut}
             disabled={signingOut}
-            className="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition-colors disabled:opacity-50 cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold text-white bg-[#4c39f5] hover:bg-[#3829cb] transition-colors disabled:opacity-50 cursor-pointer"
           >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />

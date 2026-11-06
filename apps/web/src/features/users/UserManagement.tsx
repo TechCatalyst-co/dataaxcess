@@ -157,13 +157,13 @@ export function UserManagement({ currentUserId, onBack }: UserManagementProps) {
               placeholder="Search username, name…"
               value={filters.q}
               onChange={(e) => handleSearch(e.target.value)}
-              className="w-64 px-3 py-2 text-xs border border-slate-200 rounded focus:ring-2 focus:ring-[#285442] outline-none"
+              className="w-64 px-3 py-2 text-xs border border-slate-200 rounded focus:ring-2 focus:ring-[#4c39f5] outline-none"
             />
           </div>
           <div className="flex items-center justify-end flex-1">
             <button
               type="button"
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-[#285442] hover:bg-[#1e4434] rounded transition-colors disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-[#4c39f5] hover:bg-[#3829cb] rounded transition-colors disabled:opacity-50 cursor-pointer"
               onClick={handleCreate}
               disabled={createUser.isPending}
             >
@@ -230,7 +230,7 @@ export function UserManagement({ currentUserId, onBack }: UserManagementProps) {
                         )}
                         <button
                           type="button"
-                          className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="p-1.5 text-[#4c39f5] hover:text-[#3829cb] hover:bg-[#eeecff] rounded transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Reset password"
                           onClick={() => handleResetPasswordOpen(user.id)}
                           disabled={resetPassword.isPending || deleteUser.isPending}

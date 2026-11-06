@@ -151,7 +151,7 @@ function App() {
 
       {activeView === 'create' && (
         <div className="flex-1 p-6 bg-slate-50 overflow-y-auto">
-          <div className="max-w-4xl mx-auto">
+            <div className="max-w-[1600px] mx-auto">
             <div className="flex items-center justify-between mb-4">
               <button
                 type="button"

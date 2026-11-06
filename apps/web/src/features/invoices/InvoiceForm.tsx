@@ -47,11 +47,11 @@ export function InvoiceForm({ onCreated, onCancel }: InvoiceFormProps) {
       <section className="form-section">
         <h3>Vehicle information</h3>
         <div className="form-grid">
-          <label>Invoice number <span className="required">*</span><input name="invoiceNumber" required maxLength={50} placeholder="Enter invoice number…" /></label>
-          <label>Full VIN <span className="required">*</span><input name="vin" required minLength={17} maxLength={17} pattern="[A-HJ-NPR-Z0-9]{17}" title="Enter a valid 17-character VIN" placeholder="Enter full VIN…" /></label>
-          <label>Year <span className="required">*</span><input name="year" required type="number" min="1886" max="2100" placeholder="Enter year…" /></label>
-          <label>Make <span className="required">*</span><input name="make" required maxLength={50} placeholder="Enter make…" /></label>
-          <label>Model <span className="required">*</span><input name="model" required maxLength={50} placeholder="Enter model…" /></label>
+          <label><span>Invoice number <span className="required">*</span></span><input name="invoiceNumber" required maxLength={50} placeholder="Enter invoice number…" /></label>
+          <label><span>Full VIN <span className="required">*</span></span><input name="vin" required minLength={17} maxLength={17} pattern="[A-HJ-NPR-Z0-9]{17}" title="Enter a valid 17-character VIN" placeholder="Enter full VIN…" /></label>
+          <label>Year <input name="year" type="number" min="1886" max="2100" placeholder="Enter year…" /></label>
+          <label>Make <input name="make" maxLength={50} placeholder="Enter make…" /></label>
+          <label>Model <input name="model" maxLength={50} placeholder="Enter model…" /></label>
         </div>
       </section>
       <section className="form-section">
@@ -59,8 +59,8 @@ export function InvoiceForm({ onCreated, onCancel }: InvoiceFormProps) {
         <div className="form-grid">
           <label>Company name<input name="buyerCompany" maxLength={100} placeholder="Enter company name…" /></label>
           <label>RFC<input name="buyerRfc" maxLength={20} placeholder="Enter RFC…" /></label>
-          <label className="full-width">Address<textarea name="buyerAddress" maxLength={200} rows={2} placeholder="Enter address…" /></label>
-          <label className="full-width">City<input name="buyerCity" maxLength={100} placeholder="Enter city…" /></label>
+          <label>Address<input name="buyerAddress" maxLength={200} placeholder="Enter address…" /></label>
+          <label>City<input name="buyerCity" maxLength={100} placeholder="Enter city…" /></label>
         </div>
       </section>
       <section className="form-section">

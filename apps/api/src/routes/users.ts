@@ -89,6 +89,13 @@ export async function registerUsersRoutes(app: FastifyInstance) {
     return result;
   });
 
+  app.get("/api/users/count", {
+    preHandler: requireAuth,
+  }, async (request, reply) => {
+    const [{ total }] = await db.select({ total: count() }).from(users);
+    return reply.code(200).send({ count: Number(total) });
+  });
+
   app.get<{ Params: { id: string } }>("/api/users/:id", {
     preHandler: requireRole("admin"),
   }, async (request, reply) => {

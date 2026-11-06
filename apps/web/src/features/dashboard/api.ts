@@ -28,11 +28,11 @@ export async function fetchClearanceMetrics(): Promise<ClearanceMetricsSummary> 
 }
 
 export async function fetchRegisteredUsers(): Promise<number> {
-  const response = await fetch(`${apiBase}/api/users?page=1&pageSize=1`, {
+  const response = await fetch(`${apiBase}/api/users/count`, {
     credentials: 'include',
   })
   const data = await handleResponse(response)
-  return (data as { total: number }).total
+  return (data as { count: number }).count
 }
 
 const MONTH_NAMES = [

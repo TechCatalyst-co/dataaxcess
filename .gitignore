@@ -8,3 +8,4 @@ dist
 .kilo
 .agents
 skills-lock.json
+private-migration-data/

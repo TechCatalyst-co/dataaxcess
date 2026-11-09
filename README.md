@@ -117,6 +117,39 @@ The API listens at `http://localhost:3000`; Vite prints the frontend URL, normal
 
 For schema changes, update `apps/api/src/db/schema.ts`, generate and review the SQL migration in `apps/api/drizzle/`, then apply it with `db:migrate`.
 
+### Importing the legacy live-site CSVs
+
+The two source files are kept in the project root's ignored `private-migration-data` folder:
+
+- `private-migration-data/tbl_user.csv`
+- `private-migration-data/tbl_product.csv`
+
+That folder is excluded by `.gitignore`; do not remove the ignore rule or commit these files. The user CSV contains plaintext passwords. The importer hashes each password with Argon2 and does not log or store plaintext passwords.
+
+When preparing the production import:
+
+1. Set `DATABASE_URL` to the **production MySQL database** in the deployment environment. Do not use your local `.env` unless you intentionally want to import into the local database.
+2. Back up the target database and apply the project's migrations:
+
+```powershell
+npm run db:migrate -w @dataaxcess/api
+```
+
+3. From the project root, run a target check. This reads the CSVs and checks for duplicate usernames/invoice numbers in the target database; it does not write imported records:
+
+```powershell
+npm run db:import-live-csv -w @dataaxcess/api -- --users ".\private-migration-data\tbl_user.csv" --products ".\private-migration-data\tbl_product.csv" --check-target
+```
+
+4. Confirm the report shows 8 users and 4,352 invoices importable, with no failures or existing-record conflicts. If the target check reports conflicts, stop and resolve them before importing.
+5. To perform the import, run the same command with `--apply` added:
+
+```powershell
+npm run db:import-live-csv -w @dataaxcess/api -- --users ".\private-migration-data\tbl_user.csv" --products ".\private-migration-data\tbl_product.csv" --check-target --apply
+```
+
+The import writes users and invoices in one database transaction. Do not run the seed command afterward for an imported admin account, because the seed command resets that account's password. Afterward, verify the imported counts and test a user login. Keep the CSVs restricted until the migration is verified and any required retention is complete, then remove them securely. Never put production database credentials or these CSVs in Git.
+
 ## API
 
 Protected endpoints use the session cookie created by login. The sales lookup endpoint uses separate username/password API credentials.

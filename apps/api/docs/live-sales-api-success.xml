@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Sanitized fixture transcribed from a successful live response on 2026-11-09.
+     Original VIN, invoice number, company, RFC, address, and analyst data were redacted. -->
+<response><success>true</success><user_status>admin</user_status><query_timestamp>2026-11-09 13:06:05</query_timestamp><vehicle_details><Invoice_Number>[redacted invoice]</Invoice_Number><Full_Vin>[redacted VIN]</Full_Vin><Year>2019</Year><Make>Honda</Make><Model>Civic</Model><Company_Name>[redacted company]</Company_Name><RFC>[redacted RFC]</RFC><Address>[redacted address]</Address><City>[redacted city]</City><Sale_Date>2026-09-30</Sale_Date><Total_Sales_Price>1686.00</Total_Sales_Price><Data_Analyst>[redacted analyst]</Data_Analyst></vehicle_details></response>

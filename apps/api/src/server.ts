@@ -8,6 +8,7 @@ import { registerSessionPlugin } from "./plugins/session.js";
 import { registerAuthRoutes, requireRole } from "./routes/auth.js";
 import { registerInvoiceRoutes } from "./routes/invoices.js";
 import { registerUsersRoutes } from "./routes/users.js";
+import { registerSalesApiRoutes } from "./routes/sales-api.js";
 
 const app = Fastify({ logger: true, trustProxy: false });
 
@@ -24,6 +25,7 @@ registerSessionPlugin(app);
 await app.register(registerAuthRoutes);
 await app.register(registerInvoiceRoutes);
 await app.register(registerUsersRoutes);
+await app.register(registerSalesApiRoutes);
 
 app.get("/health", async () => ({ ok: true }));
 app.get("/api/admin/check", { preHandler: requireRole("admin") }, async (request) => ({ ok: true, user: request.authUser }));

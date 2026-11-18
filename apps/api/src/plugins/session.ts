@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { FastifyInstance } from "fastify";
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { sessions, users } from "../db/schema.js";
 
@@ -23,7 +23,7 @@ export function registerSessionPlugin(app: FastifyInstance) {
       role: users.role,
     }).from(sessions)
       .innerJoin(users, eq(sessions.userId, users.id))
-      .where(and(eq(sessions.id, tokenHash), gt(sessions.expiresAt, new Date()), sql`${sessions.endedAt} IS NULL`))
+      .where(and(eq(sessions.id, tokenHash), gt(sessions.expiresAt, new Date()), sql`${sessions.endedAt} IS NULL`, isNull(users.deletedAt)))
       .limit(1);
 
     if (session) {

@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import argon2 from "argon2";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { loginSchema } from "@dataaxcess/shared";
 import { db } from "../db/index.js";
 import { sessions, users } from "../db/schema.js";
@@ -19,13 +19,26 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     if (!parsed.success) return reply.code(400).send({ error: "Invalid username or password" });
 
     const [user] = await db.select().from(users).where(eq(users.username, parsed.data.username)).limit(1);
-    if (!user || !(await argon2.verify(user.passwordHash, parsed.data.password))) {
+    if (!user || user.lockedUntil && user.lockedUntil > new Date()) {
       return reply.code(401).send({ error: "Invalid username or password" });
     }
+    if (!user || !(await argon2.verify(user.passwordHash, parsed.data.password))) {
+      if (user) {
+        const nextAttempts = Number(user.failedLoginAttempts) + 1;
+        const update: Record<string, unknown> = { failedLoginAttempts: nextAttempts };
+        if (nextAttempts >= 5) {
+          update.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+        }
+        await db.update(users).set(update).where(eq(users.id, user.id));
+      }
+      return reply.code(401).send({ error: "Invalid username or password" });
+    }
+    await db.update(users).set({ failedLoginAttempts: 0, lockedUntil: null }).where(eq(users.id, user.id));
 
     const token = randomBytes(32).toString("hex");
     const tokenHash = createHash("sha256").update(token).digest("hex");
     const expiresAt = new Date(Date.now() + sessionDurationMs);
+    await endAllSessionsForUser(user.id);
     await db.insert(sessions).values({ id: tokenHash, userId: user.id, expiresAt, lastActivityAt: new Date() });
 
     reply.setCookie(cookieName, token, {
@@ -64,4 +77,11 @@ export function requireRole(role: AuthUser["role"]) {
     if (!request.authUser) return reply.code(401).send({ error: "Authentication required" });
     if (request.authUser.role !== role) return reply.code(403).send({ error: "Insufficient permissions" });
   };
+}
+
+export async function endAllSessionsForUser(userId: number) {
+  await db.update(sessions).set({ endedAt: new Date() }).where(and(
+    eq(sessions.userId, userId),
+    sql`${sessions.endedAt} IS NULL`,
+  ));
 }

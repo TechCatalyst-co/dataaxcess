@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { XMLBuilder } from "fast-xml-parser";
-import { eq } from "drizzle-orm";
+import { eq, isNull, and } from "drizzle-orm";
 import { vinSchema } from "@dataaxcess/shared";
 import { db } from "../db/index.js";
 import { invoices, users } from "../db/schema.js";
@@ -8,9 +8,7 @@ import { invoices, users } from "../db/schema.js";
 type SalesQuery = { vin?: string; format?: string; user?: string; password?: string };
 type SalesBody = { vin?: string; format?: string; user?: string; pass?: string; password?: string };
 
-const basicAuthHeader = (request: FastifyRequest) => request.headers.authorization
-  ?? request.headers["http-authorization"] as string | undefined
-  ?? request.headers["redirect-http-authorization"] as string | undefined;
+const basicAuthHeader = (request: FastifyRequest) => request.headers.authorization as string | undefined;
 
 const xmlBuilder = new XMLBuilder({
   ignoreAttributes: false,
@@ -63,12 +61,12 @@ export async function registerSalesApiRoutes(app: FastifyInstance) {
         }
         return reply.type("application/json").send(jsonData);
       };
-      if (format !== "json" && format !== "xml") return send(400, { success: false, error: { message: "Unsupported format", format } });
+      if (format !== "json" && format !== "xml") return send(400, { success: false, error: { message: "Unsupported format" } });
 
       const credentials = credentialsFrom(request, body);
       if (!credentials.username || !credentials.password) return send(401, { success: false, error: { message: "Authentication required" } });
       const [user] = await db.select({ id: users.id, passwordHash: users.passwordHash, role: users.role })
-        .from(users).where(eq(users.username, credentials.username)).limit(1);
+        .from(users).where(and(eq(users.username, credentials.username), isNull(users.deletedAt))).limit(1);
       // API credentials use a username and password. Accept secure Argon2 hashes only;
       // do not reintroduce the legacy deployment's plaintext password comparison.
       const argon2 = await import("argon2");

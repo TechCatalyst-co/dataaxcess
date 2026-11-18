@@ -10,7 +10,12 @@ import { registerInvoiceRoutes } from "./routes/invoices.js";
 import { registerUsersRoutes } from "./routes/users.js";
 import { registerSalesApiRoutes } from "./routes/sales-api.js";
 
-const app = Fastify({ logger: true, trustProxy: false });
+const isProduction = process.env.NODE_ENV === "production";
+
+const app = Fastify({
+  logger: true,
+  trustProxy: process.env.TRUST_PROXY === "true",
+});
 
 await app.register(helmet);
 await app.register(cors, {

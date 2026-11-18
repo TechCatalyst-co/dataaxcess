@@ -11,6 +11,9 @@ export const users = mysqlTable("users", {
   role: mysqlEnum("role", ["admin", "agent"]).notNull().default("agent"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+  failedLoginAttempts: int("failed_login_attempts").notNull().default(0),
+  lockedUntil: datetime("locked_until"),
+  deletedAt: datetime("deleted_at"),
 });
 
 export const sessions = mysqlTable("sessions", {

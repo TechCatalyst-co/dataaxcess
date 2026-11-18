@@ -1,11 +1,12 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import argon2 from "argon2";
-import { eq, or, like, count, desc } from "drizzle-orm";
+import { eq, or, like, count, desc, isNull, and } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { users } from "../db/schema.js";
 import {
   requireAuth,
   requireRole,
+  endAllSessionsForUser,
 } from "./auth.js";
 import {
   teamUserSchema,
@@ -53,7 +54,7 @@ export async function registerUsersRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: "Invalid pagination parameters" });
     }
 
-    const conditions = [];
+    const conditions: Array<Parameters<typeof and>[0]> = [isNull(users.deletedAt)];
     if (query) {
       conditions.push(or(
         like(users.username, `%${query}%`),
@@ -64,7 +65,7 @@ export async function registerUsersRoutes(app: FastifyInstance) {
       conditions.push(eq(users.role, request.query.role as "admin" | "agent"));
     }
 
-    const where = conditions.length > 0 ? or(...conditions) : undefined;
+    const where = and(...conditions);
 
     const [{ total }] = await db.select({ total: count() }).from(users).where(where);
     const rows = await db.select({
@@ -90,9 +91,9 @@ export async function registerUsersRoutes(app: FastifyInstance) {
   });
 
   app.get("/api/users/count", {
-    preHandler: requireAuth,
+    preHandler: requireRole("admin"),
   }, async (request, reply) => {
-    const [{ total }] = await db.select({ total: count() }).from(users);
+    const [{ total }] = await db.select({ total: count() }).from(users).where(isNull(users.deletedAt));
     return reply.code(200).send({ count: Number(total) });
   });
 
@@ -110,7 +111,7 @@ export async function registerUsersRoutes(app: FastifyInstance) {
       fullName: users.fullName,
       role: users.role,
       createdAt: users.createdAt,
-    }).from(users).where(eq(users.id, id)).limit(1);
+    }).from(users).where(and(eq(users.id, id), isNull(users.deletedAt))).limit(1);
 
     if (!row) return reply.code(404).send({ error: "User not found" });
     return toTeamUser(row);
@@ -161,11 +162,15 @@ export async function registerUsersRoutes(app: FastifyInstance) {
 
     const input = parsed.data as UpdateTeamUserInput;
 
-    const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.id, id)).limit(1);
+    const [existing] = await db.select({ id: users.id }).from(users).where(and(
+      eq(users.id, id),
+      isNull(users.deletedAt),
+    )).limit(1);
     if (!existing) return reply.code(404).send({ error: "User not found" });
 
     try {
       await db.update(users).set(input).where(eq(users.id, id));
+      await endAllSessionsForUser(id);
       const [row] = await db.select({
         id: users.id,
         username: users.username,
@@ -194,12 +199,16 @@ export async function registerUsersRoutes(app: FastifyInstance) {
     const parsed = resetPasswordSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: "Password must be at least 12 characters." });
 
-    const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.id, id)).limit(1);
+    const [existing] = await db.select({ id: users.id }).from(users).where(and(
+      eq(users.id, id),
+      isNull(users.deletedAt),
+    )).limit(1);
     if (!existing) return reply.code(404).send({ error: "User not found" });
 
     try {
       const passwordHash = await argon2.hash(parsed.data.password, { type: argon2.argon2id });
       await db.update(users).set({ passwordHash }).where(eq(users.id, id));
+      await endAllSessionsForUser(id);
       return reply.code(204).send();
     } catch (error) {
       throw error;
@@ -218,10 +227,13 @@ export async function registerUsersRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: "You cannot remove your own account." });
     }
 
-    const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.id, id)).limit(1);
+    const [existing] = await db.select({ id: users.id }).from(users).where(and(
+      eq(users.id, id),
+      isNull(users.deletedAt),
+    )).limit(1);
     if (!existing) return reply.code(404).send({ error: "User not found" });
 
-    await db.delete(users).where(eq(users.id, id));
+    await db.update(users).set({ deletedAt: new Date() }).where(eq(users.id, id));
     return reply.code(204).send();
   });
 }

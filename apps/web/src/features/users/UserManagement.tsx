@@ -24,10 +24,10 @@ function formatDate(value: string | null) {
   return Number.isNaN(date.valueOf()) ? '—' : new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric' }).format(date)
 }
 
-function roleBadge(role: 'admin' | 'agent') {
-  return role === 'admin'
-    ? 'px-2 py-0.5 rounded text-xs font-bold bg-slate-900 text-white'
-    : 'px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-700'
+function roleBadge(role: 'admin' | 'agent' | 'viewer') {
+  if (role === 'admin') return 'px-2 py-0.5 rounded text-xs font-bold bg-slate-900 text-white'
+  if (role === 'viewer') return 'px-2 py-0.5 rounded text-xs font-bold bg-blue-50 text-blue-700'
+  return 'px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-700'
 }
 
 export function UserManagement({ currentUserId, onBack }: UserManagementProps) {

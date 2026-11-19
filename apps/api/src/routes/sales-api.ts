@@ -70,6 +70,10 @@ export async function registerSalesApiRoutes(app: FastifyInstance) {
         return send(401, { success: false, error: { message: "Invalid credentials" } });
       }
 
+      if (user.role === "viewer") {
+        return send(403, { success: false, error: { message: "Insufficient permissions" } });
+      }
+
       const parsedVin = vinSchema.safeParse(params.vin);
       if (!parsedVin.success) return send(400, { success: false, error: { message: "A valid 17-character VIN is required" } });
       const expirationDays = await getInvoiceExpirationDays();

@@ -19,7 +19,7 @@ export function UserForm({ open, onClose, onSave, editingUser }: UserFormProps) 
     const form = new FormData(event.currentTarget)
     const username = String(form.get('username') ?? '').trim()
     const fullName = String(form.get('fullName') ?? '').trim()
-    const role = String(form.get('role') ?? '') as 'admin' | 'agent'
+    const role = String(form.get('role') ?? '') as 'admin' | 'agent' | 'viewer'
     const password = String(form.get('password') ?? '')
 
     setError('')
@@ -30,7 +30,7 @@ export function UserForm({ open, onClose, onSave, editingUser }: UserFormProps) 
     if (isCreate && password.length < 12) { setError('Password must be at least 12 characters.'); return }
 
     setBusy(true)
-    const payload: { username?: string; fullName?: string; role?: 'admin' | 'agent'; password?: string } = {
+    const payload: { username?: string; fullName?: string; role?: 'admin' | 'agent' | 'viewer'; password?: string } = {
       username,
       fullName,
       role,
@@ -94,6 +94,7 @@ export function UserForm({ open, onClose, onSave, editingUser }: UserFormProps) 
             <select name="role" defaultValue={isCreate ? 'agent' : editingUser?.role} className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-[#4c39f5] outline-none bg-white">
               <option value="admin">Admin</option>
               <option value="agent">Agent</option>
+              <option value="viewer">Viewer</option>
             </select>
           </div>
           {isCreate && (

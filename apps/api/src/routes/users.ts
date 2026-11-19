@@ -3,7 +3,6 @@ import argon2 from "argon2";
 import mongoose from "mongoose";
 import { User, Invoice } from "../db/schema.js";
 import {
-  requireAuth,
   requireRole,
   endAllSessionsForUser,
 } from "./auth.js";
@@ -59,7 +58,7 @@ export async function registerUsersRoutes(app: FastifyInstance) {
       conditions.$or = [{ username: regex }, { fullName: regex }];
     }
     if (request.query.role) {
-      conditions.role = request.query.role as "admin" | "agent";
+      conditions.role = request.query.role as "admin" | "agent" | "viewer";
     }
 
     const total = await User.countDocuments(conditions);
@@ -81,7 +80,7 @@ export async function registerUsersRoutes(app: FastifyInstance) {
   });
 
   app.get("/api/users/count", {
-    preHandler: requireAuth,
+    preHandler: requireRole("admin"),
   }, async (request, reply) => {
     const total = await User.countDocuments({ deletedAt: null });
     return reply.code(200).send({ count: total });

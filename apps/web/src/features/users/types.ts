@@ -2,7 +2,7 @@ export type TeamUser = {
   id: string
   username: string
   fullName: string
-  role: 'admin' | 'agent'
+  role: 'admin' | 'agent' | 'viewer'
   createdAt: string
 }
 
@@ -18,12 +18,12 @@ export type CreateTeamUserInput = {
   username: string
   fullName: string
   password: string
-  role: 'admin' | 'agent'
+  role: 'admin' | 'agent' | 'viewer'
 }
 
 export type UpdateTeamUserInput = {
   fullName?: string
-  role?: 'admin' | 'agent'
+  role?: 'admin' | 'agent' | 'viewer'
 }
 
 export type ResetPasswordInput = {
@@ -32,5 +32,5 @@ export type ResetPasswordInput = {
 
 export type UserFilters = {
   q: string
-  role: 'admin' | 'agent' | 'all'
+  role: 'admin' | 'agent' | 'viewer' | 'all'
 }

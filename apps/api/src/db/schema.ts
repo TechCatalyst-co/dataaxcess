@@ -5,7 +5,7 @@ export const userSchema = new Schema(
     username: { type: String, required: true, unique: true, maxlength: 50 },
     passwordHash: { type: String, required: true, maxlength: 255 },
     fullName: { type: String, required: true, maxlength: 100 },
-    role: { type: String, enum: ["admin", "agent"], required: true, default: "agent" },
+    role: { type: String, enum: ["admin", "agent", "viewer"], required: true, default: "agent" },
     createdAt: { type: Date, required: true, default: Date.now },
     updatedAt: { type: Date, required: true, default: Date.now },
     failedLoginAttempts: { type: Number, required: true, default: 0 },

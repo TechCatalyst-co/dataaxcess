@@ -154,6 +154,13 @@ export function requireRole(role: AuthUser["role"]) {
   };
 }
 
+export function requireRoles(roles: AuthUser["role"][]) {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!request.authUser) return reply.code(401).send({ error: "Authentication required" });
+    if (!roles.includes(request.authUser.role)) return reply.code(403).send({ error: "Insufficient permissions" });
+  };
+}
+
 export async function endAllSessionsForUser(userId: string) {
   await Session.updateMany(
     { userId: new mongoose.Types.ObjectId(userId), endedAt: null },

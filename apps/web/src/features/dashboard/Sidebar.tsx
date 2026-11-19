@@ -3,7 +3,7 @@ import type { DashboardNavItemId } from './types'
 
 interface SidebarProps {
   username?: string
-  userRole?: 'admin' | 'agent'
+  userRole?: 'admin' | 'agent' | 'viewer'
   activeNav?: DashboardNavItemId
   onSelectNav?: (navId: DashboardNavItemId) => void
   onSignOut: () => void
@@ -25,6 +25,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   }
 
+  const isViewer = userRole === 'viewer'
+
   return (
     <aside className="w-64 shrink-0 bg-white border-r border-slate-200 flex flex-col justify-between min-h-screen px-4 py-5 select-none font-sans z-10">
       <div className="flex flex-col gap-6">
@@ -41,48 +43,50 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Main Workspace Section */}
-        <div>
-          <div className="text-xs font-semibold text-slate-400 px-2 mb-2">
-            MAIN WORKSPACE
-          </div>
-          <nav className="flex flex-col gap-1">
-            {/* Overview / Analytics (Active) */}
-            <button
-              type="button"
-              onClick={(e) => handleLinkClick(e, 'overview')}
-              className={`flex items-center justify-between w-full px-3 py-2.5 text-xs font-semibold transition-colors cursor-pointer ${
-                activeNav === 'overview'
-                  ? 'bg-[#4c39f5] text-white'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-              title="Overview & Analytics Dashboard"
-            >
-              <div className="flex items-center gap-2.5">
-                <svg className="w-4 h-4 shrink-0 text-slate-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-                <span>Overview / Analytics</span>
-              </div>
-            </button>
+        {!isViewer && (
+          <div>
+            <div className="text-xs font-semibold text-slate-400 px-2 mb-2">
+              MAIN WORKSPACE
+            </div>
+            <nav className="flex flex-col gap-1">
+              {/* Overview / Analytics (Active) */}
+              <button
+                type="button"
+                onClick={(e) => handleLinkClick(e, 'overview')}
+                className={`flex items-center justify-between w-full px-3 py-2.5 text-xs font-semibold transition-colors cursor-pointer ${
+                  activeNav === 'overview'
+                    ? 'bg-[#4c39f5] text-white'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+                title="Overview & Analytics Dashboard"
+              >
+                <div className="flex items-center gap-2.5">
+                  <svg className="w-4 h-4 shrink-0 text-slate-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                  </svg>
+                  <span>Overview / Analytics</span>
+                </div>
+              </button>
 
-            <button
-              type="button"
-              onClick={(e) => handleLinkClick(e, 'audit')}
-              className={`flex items-center justify-between w-full px-3 py-2.5 text-xs font-medium transition-colors cursor-pointer ${
-                activeNav === 'audit'
-                  ? 'bg-[#4c39f5] text-white'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-                </svg>
-                <span>Compliance Audit</span>
-              </div>
-            </button>
-          </nav>
-        </div>
+              <button
+                type="button"
+                onClick={(e) => handleLinkClick(e, 'audit')}
+                className={`flex items-center justify-between w-full px-3 py-2.5 text-xs font-medium transition-colors cursor-pointer ${
+                  activeNav === 'audit'
+                    ? 'bg-[#4c39f5] text-white'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                  </svg>
+                  <span>Compliance Audit</span>
+                </div>
+              </button>
+            </nav>
+          </div>
+        )}
 
         {/* Quick Tools Section */}
         <div>
@@ -91,22 +95,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
           <nav className="flex flex-col gap-1">
             {/* + New Invoice */}
-            <button
-              type="button"
-              onClick={(e) => handleLinkClick(e, 'new_invoice')}
-              className={`flex items-center justify-between w-full px-3 py-2 text-xs font-medium transition-colors cursor-pointer ${
-                activeNav === 'new_invoice'
-                  ? 'bg-[#4c39f5] text-white'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                <span>New Invoice</span>
-              </div>
-            </button>
+            {!isViewer && (
+              <button
+                type="button"
+                onClick={(e) => handleLinkClick(e, 'new_invoice')}
+                className={`flex items-center justify-between w-full px-3 py-2 text-xs font-medium transition-colors cursor-pointer ${
+                  activeNav === 'new_invoice'
+                    ? 'bg-[#4c39f5] text-white'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  <span>New Invoice</span>
+                </div>
+              </button>
+            )}
 
             {/* View All Invoices */}
             <button
@@ -146,7 +152,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
 
             {/* Manage Team */}
-            {userRole !== 'agent' && (
+            {userRole !== 'agent' && !isViewer && (
               <button
                 type="button"
                 onClick={(e) => handleLinkClick(e, 'manage_team')}

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchComplianceAudit, type ComplianceAuditData } from './api'
 import './compliance.css'
 
-type Props = { user: { id: string; username: string; fullName?: string; role: 'admin' | 'agent' } }
+type Props = { user: { id: string; username: string; fullName?: string; role: 'admin' | 'agent' | 'viewer' } }
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return 'Not available'
@@ -69,7 +69,7 @@ export function ComplianceAudit({ user }: Props) {
         <AuditRow label="User ID" value={`USR-${String(currentUser.id).padStart(6, '0')}`} />
         <AuditRow label="Full name" value={currentUser.fullName || 'Name not set'} />
         <AuditRow label="Username" value={currentUser.username} />
-        <AuditRow label="Role" value={currentUser.role === 'admin' ? 'Administrator' : 'Agent'} />
+        <AuditRow label="Role" value={currentUser.role === 'admin' ? 'Administrator' : currentUser.role === 'viewer' ? 'Viewer' : 'Agent'} />
       </AuditCard>
       <AuditCard title="VIN Verification" icon="⌕">
         <AuditRow label="Last VIN submitted" value={data?.vinActivity.lastVin ?? 'No VIN submitted yet'} />

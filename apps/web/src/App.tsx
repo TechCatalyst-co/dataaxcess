@@ -22,7 +22,14 @@ function App() {
   const [unauthorizedNav, setUnauthorizedNav] = useState<DashboardNavItemId | null>(null)
 
   useEffect(() => {
-    getSession().then(setUser)
+    getSession()
+      .then((signedInUser) => {
+        setUser(signedInUser)
+        if (signedInUser?.role === 'viewer') {
+          setActiveView('list')
+          setActiveNav('view_all_invoices')
+        }
+      })
       .catch(() => setMessage('Unable to connect to the sign-in service.'))
       .finally(() => setChecking(false))
   }, [])
@@ -42,6 +49,13 @@ function App() {
   }
 
   const handleNavSelect = (navId: DashboardNavItemId) => {
+    if (user?.role === 'viewer') {
+      if (navId !== 'view_all_invoices') return
+      setActiveNav('view_all_invoices')
+      setActiveView('list')
+      setUnauthorizedNav(null)
+      return
+    }
     setActiveNav(navId)
     setUnauthorizedNav(null)
     if (navId === 'manage_team') {
@@ -79,7 +93,7 @@ function App() {
 
   // 2. Public marketing homepage and portal sign-in modal
   if (!user) {
-    return <><HomePage onSignedIn={(signedInUser) => { setMessage(''); setUser(signedInUser) }} />{message && <p className="session-alert" role="alert">{message}</p>}</>
+    return <><HomePage onSignedIn={(signedInUser) => { setMessage(''); setUser(signedInUser); if (signedInUser.role === 'viewer') { setActiveView('list'); setActiveNav('view_all_invoices') } }} />{message && <p className="session-alert" role="alert">{message}</p>}</>
   }
 
   // 3. Logged in: Replaces old dashboard with modern Clearance Analytics console
@@ -94,7 +108,7 @@ function App() {
         signingOut={signingOut}
       />
 
-      {activeView === 'dashboard' && (
+      {user.role !== 'viewer' && activeView === 'dashboard' && (
         <ClearanceDashboard
           onViewAllInvoices={() => {
             setActiveView('list')
@@ -103,33 +117,37 @@ function App() {
         />
       )}
 
-      {activeView === 'audit' && <ComplianceAudit user={user} />}
+      {user.role !== 'viewer' && activeView === 'audit' && <ComplianceAudit user={user} />}
 
       {activeView === 'list' && (
         <div className="flex-1 p-6 bg-slate-50 overflow-y-auto">
           <div className="max-w-6xl mx-auto">
             <div className="flex items-center justify-between mb-4">
-              <button
-                type="button"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 py-1.5 px-3 bg-white border border-slate-300 rounded shadow-sm transition-all cursor-pointer"
-                onClick={() => { setActiveView('dashboard'); setActiveNav('overview') }}
-              >
-                ← Back to Clearance Analytics
-              </button>
-              <button
-                type="button"
-                className="button primary compact"
-                onClick={() => { setActiveView('create'); setActiveNav('new_invoice') }}
-              >
-                + New invoice
-              </button>
+              {user.role !== 'viewer' && (
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 py-1.5 px-3 bg-white border border-slate-300 rounded shadow-sm transition-all cursor-pointer"
+                  onClick={() => { setActiveView('dashboard'); setActiveNav('overview') }}
+                >
+                  ← Back to Clearance Analytics
+                </button>
+              )}
+              {user.role !== 'viewer' && (
+                <button
+                  type="button"
+                  className="button primary compact"
+                  onClick={() => { setActiveView('create'); setActiveNav('new_invoice') }}
+                >
+                  + New invoice
+                </button>
+              )}
             </div>
-            <InvoiceLedger key="ledger" />
+            <InvoiceLedger key="ledger" readOnly={user.role === 'viewer'} />
           </div>
         </div>
       )}
 
-      {activeView === 'archived' && (
+      {user.role === 'admin' && activeView === 'archived' && (
         <div className="flex-1 p-6 bg-slate-50 overflow-y-auto">
           <div className="max-w-[1600px] mx-auto">
             <div className="flex items-center justify-between mb-4">
@@ -150,7 +168,7 @@ function App() {
         </div>
       )}
 
-      {activeView === 'create' && (
+      {user.role !== 'viewer' && activeView === 'create' && (
         <div className="flex-1 p-6 bg-slate-50 overflow-y-auto">
             <div className="max-w-[1600px] mx-auto">
             <div className="flex items-center justify-between mb-4">
@@ -170,7 +188,7 @@ function App() {
         </div>
       )}
 
-      {activeView === 'team' && (
+      {user.role === 'admin' && activeView === 'team' && (
         <div className="flex-1 p-6 bg-slate-50 overflow-y-auto">
           <div className="max-w-6xl mx-auto">
             <UserManagement currentUserId={user?.id ?? null} onBack={() => { setActiveView('dashboard'); setActiveNav('overview') }} />

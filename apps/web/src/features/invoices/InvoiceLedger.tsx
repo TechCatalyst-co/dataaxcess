@@ -16,7 +16,7 @@ function formatMoney(value: string | null) {
   return Number.isFinite(amount) ? new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(amount) : '—'
 }
 
-export function InvoiceLedger() {
+export function InvoiceLedger({ readOnly = false }: { readOnly?: boolean }) {
   const queryClient = useQueryClient()
   const [invoiceData, setInvoiceData] = useState<InvoicePage | null>(null)
   const [loading, setLoading] = useState(false)
@@ -93,7 +93,7 @@ export function InvoiceLedger() {
           const status = isVerified ? 'verified' : 'pending'
           const nextStatus = isVerified ? 'pending' : 'verified'
           const isSaving = savingInvoices.has(invoice.invoiceNumber)
-          return <tr key={invoice.invoiceNumber}><td className="invoice-id">{invoice.invoiceNumber}</td><td><strong>{invoice.year} {invoice.make}</strong><span className="cell-subtitle">{invoice.model}</span></td><td className="vin-cell">{invoice.vin}</td><td>{invoice.buyerCompany || '—'}</td><td>{formatDate(invoice.saleDate)}</td><td className="money-cell">{formatMoney(invoice.totalSales)}</td><td><button type="button" className={`status-pill status-pill-button ${status}`} aria-label={`Invoice ${invoice.invoiceNumber} is ${status}; mark as ${nextStatus}`} title={`Change status to ${nextStatus}`} aria-pressed={isVerified} disabled={isSaving} onClick={() => void toggleInvoiceStatus(invoice.invoiceNumber, nextStatus)}><i />{isSaving ? 'Saving…' : isVerified ? 'Verified' : 'Pending'}{!isSaving && <PencilSimple className="status-edit-icon" aria-hidden="true" />}</button></td></tr>
+          return <tr key={invoice.invoiceNumber}><td className="invoice-id">{invoice.invoiceNumber}</td><td><strong>{invoice.year} {invoice.make}</strong><span className="cell-subtitle">{invoice.model}</span></td><td className="vin-cell">{invoice.vin}</td><td>{invoice.buyerCompany || '—'}</td><td>{formatDate(invoice.saleDate)}</td><td className="money-cell">{formatMoney(invoice.totalSales)}</td><td>{readOnly ? <span className={`status-pill ${status}`}><i />{isVerified ? 'Verified' : 'Pending'}</span> : <button type="button" className={`status-pill status-pill-button ${status}`} aria-label={`Invoice ${invoice.invoiceNumber} is ${status}; mark as ${nextStatus}`} title={`Change status to ${nextStatus}`} aria-pressed={isVerified} disabled={isSaving} onClick={() => void toggleInvoiceStatus(invoice.invoiceNumber, nextStatus)}><i />{isSaving ? 'Saving…' : isVerified ? 'Verified' : 'Pending'}{!isSaving && <PencilSimple className="status-edit-icon" aria-hidden="true" />}</button>}</td></tr>
         })}
       </tbody></table></div>
       <div className="ledger-footer"><span>{invoiceData ? `Showing ${invoiceData.total === 0 ? 0 : (page - 1) * invoiceData.pageSize + 1}–${Math.min(page * invoiceData.pageSize, invoiceData.total)} of ${invoiceData.total}` : ' '}</span><div className="pagination"><button className="button secondary" disabled={page <= 1 || loading} onClick={() => setPage((value) => Math.max(1, value - 1))}>← Previous</button><span>Page {page} of {invoiceData?.totalPages || 1}</span><button className="button secondary" disabled={!invoiceData || page >= invoiceData.totalPages || loading} onClick={() => setPage((value) => value + 1)}>Next →</button></div></div>

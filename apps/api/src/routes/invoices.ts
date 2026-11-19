@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import { createInvoiceSchema, updateInvoiceStatusSchema } from "@dataaxcess/shared";
 import { AppSetting, Invoice, Session, User } from "../db/schema.js";
 import { getInvoiceExpirationDays, invoiceExpirationCutoff, invoiceExpirationDate } from "../db/invoice-archive.js";
-import { requireAuth, requireRole } from "./auth.js";
+import { requireAuth, requireRole, requireRoles } from "./auth.js";
 
 type InvoiceQuery = { q?: string; page?: string; pageSize?: string };
 
@@ -13,7 +13,7 @@ const monthStart = () => {
 };
 
 export async function registerInvoiceRoutes(app: FastifyInstance) {
-  app.get("/api/invoices/analytics/summary", { preHandler: requireAuth }, async () => {
+  app.get("/api/invoices/analytics/summary", { preHandler: requireRoles(["admin", "agent"]) }, async () => {
     const [totals] = await Invoice.aggregate<{
       totalClearanceValueUsd: number;
       totalInvoices: number;
@@ -62,7 +62,7 @@ export async function registerInvoiceRoutes(app: FastifyInstance) {
     };
   });
 
-  app.get("/api/compliance/audit", { preHandler: requireAuth }, async (request, reply) => {
+  app.get("/api/compliance/audit", { preHandler: requireRoles(["admin", "agent"]) }, async (request, reply) => {
     const userId = request.authUser!.id;
     const userRaw = await User.findOne({ _id: new mongoose.Types.ObjectId(userId) })
       .lean<{ _id: { toHexString: () => string }; username: string; fullName: string; role: string }>();
@@ -116,9 +116,7 @@ export async function registerInvoiceRoutes(app: FastifyInstance) {
     };
   });
 
-  app.post<{ Body: unknown }>("/api/invoices", {
-    preHandler: requireAuth,
-  }, async (request, reply) => {
+  app.post<{ Body: unknown }>('/api/invoices', { preHandler: requireRoles(["admin", "agent"]) }, async (request, reply) => {
     const parsed = createInvoiceSchema.safeParse(request.body);
     if (!parsed.success) {
       console.log(JSON.stringify({
@@ -229,11 +227,11 @@ export async function registerInvoiceRoutes(app: FastifyInstance) {
     return reply.code(201).send({ invoiceNumber: input.invoiceNumber });
   });
 
-  app.put<{ Body: unknown }>("/api/invoices/status", {
+  app.put<{ Body: unknown }>('/api/invoices/status', {
     preHandler: async (request, reply) => {
-      if (!request.authUser) return reply.code(401).send({ error: "Authentication required" });
-      if (request.authUser.role !== "admin" && request.authUser.role !== "agent") {
-        return reply.code(403).send({ error: "Insufficient permissions" });
+      if (!request.authUser) return reply.code(401).send({ error: 'Authentication required' });
+      if (request.authUser.role !== 'admin' && request.authUser.role !== 'agent') {
+        return reply.code(403).send({ error: 'Insufficient permissions' });
       }
     },
   }, async (request, reply) => {

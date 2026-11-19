@@ -1,10 +1,8 @@
 import "dotenv/config";
-import mysql from "mysql2/promise";
-import { drizzle } from "drizzle-orm/mysql2";
-import * as schema from "./schema.js";
+import mongoose from "mongoose";
 
-export const pool = mysql.createPool({
-  uri: process.env.DATABASE_URL!,
-  connectionLimit: Number(process.env.DB_POOL_LIMIT ?? 10),
-});
-export const db = drizzle({ client: pool, schema, mode: "default" });
+export async function connectDb() {
+  await mongoose.connect(process.env.MONGODB_URI ?? "mongodb://localhost:27017/dataaxcess");
+}
+
+export { mongoose };

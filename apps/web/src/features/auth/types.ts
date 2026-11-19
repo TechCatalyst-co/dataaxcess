@@ -1,1 +1,1 @@
-export type User = { id: number; username: string; fullName?: string; role: 'admin' | 'agent' }
+export type User = { id: string; username: string; fullName?: string; role: 'admin' | 'agent' }

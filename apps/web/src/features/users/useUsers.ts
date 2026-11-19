@@ -34,7 +34,7 @@ export function useCreateUser() {
 export function useUpdateUser() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, input }: { id: number; input: UpdateTeamUserInput }) =>
+    mutationFn: ({ id, input }: { id: string; input: UpdateTeamUserInput }) =>
       updateUser(id, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['users'] })
@@ -45,7 +45,7 @@ export function useUpdateUser() {
 export function useDeleteUser() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: number) => deleteUser(id),
+    mutationFn: (id: string) => deleteUser(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['users'] })
     },
@@ -58,7 +58,7 @@ export function useDeleteUser() {
 export function useResetPassword() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, password }: { id: number; password: string }) =>
+    mutationFn: ({ id, password }: { id: string; password: string }) =>
       resetPassword(id, password),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['users'] })

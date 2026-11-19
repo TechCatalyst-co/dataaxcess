@@ -136,7 +136,7 @@ function App() {
               </button>
             </div>
             <InvoiceForm
-              onCreated={() => { setActiveView('dashboard'); setActiveNav('overview') }}
+              onCreated={() => { setActiveView('list'); setActiveNav('view_all_invoices') }}
               onCancel={() => { setActiveView('dashboard'); setActiveNav('overview') }}
             />
           </div>

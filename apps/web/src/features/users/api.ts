@@ -29,7 +29,7 @@ export async function fetchUsers(
   return data as UserPage
 }
 
-export async function getUser(id: number): Promise<TeamUser> {
+export async function getUser(id: string): Promise<TeamUser> {
   const response = await fetch(`${apiBase}/api/users/${id}`, { credentials: 'include' })
   const data = await handleResponse(response)
   return data as TeamUser
@@ -46,7 +46,7 @@ export async function createUser(input: CreateTeamUserInput): Promise<TeamUser> 
   return data as TeamUser
 }
 
-export async function updateUser(id: number, input: UpdateTeamUserInput): Promise<TeamUser> {
+export async function updateUser(id: string, input: UpdateTeamUserInput): Promise<TeamUser> {
   const response = await fetch(`${apiBase}/api/users/${id}`, {
     method: 'PATCH',
     credentials: 'include',
@@ -57,7 +57,7 @@ export async function updateUser(id: number, input: UpdateTeamUserInput): Promis
   return data as TeamUser
 }
 
-export async function deleteUser(id: number): Promise<void> {
+export async function deleteUser(id: string): Promise<void> {
   const response = await fetch(`${apiBase}/api/users/${id}`, {
     method: 'DELETE',
     credentials: 'include',
@@ -65,7 +65,7 @@ export async function deleteUser(id: number): Promise<void> {
   await handleResponse(response)
 }
 
-export async function resetPassword(id: number, password: string): Promise<void> {
+export async function resetPassword(id: string, password: string): Promise<void> {
   const response = await fetch(`${apiBase}/api/users/${id}/password`, {
     method: 'PATCH',
     credentials: 'include',

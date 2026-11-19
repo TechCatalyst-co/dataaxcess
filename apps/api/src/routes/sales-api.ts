@@ -1,9 +1,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { XMLBuilder } from "fast-xml-parser";
-import { eq, isNull, and } from "drizzle-orm";
+import mongoose from "mongoose";
 import { vinSchema } from "@dataaxcess/shared";
-import { db } from "../db/index.js";
-import { invoices, users } from "../db/schema.js";
+import { User, Invoice } from "../db/schema.js";
 
 type SalesQuery = { vin?: string; format?: string; user?: string; password?: string };
 type SalesBody = { vin?: string; format?: string; user?: string; pass?: string; password?: string };
@@ -25,7 +24,6 @@ function credentialsFrom(request: FastifyRequest, body: SalesBody) {
       if (separator > 0) return { username: decoded.slice(0, separator), password: decoded.slice(separator + 1) };
     } catch { /* Invalid Basic Auth is handled as unauthorized below. */ }
   }
-  // Match the documented form fields without accepting secrets in query strings.
   const form = request.body instanceof URLSearchParams
     ? Object.fromEntries(request.body.entries()) as SalesBody
     : body;
@@ -46,7 +44,6 @@ export async function registerSalesApiRoutes(app: FastifyInstance) {
       const params = request.method === "GET"
         ? query
         : request.body instanceof URLSearchParams ? Object.fromEntries(request.body.entries()) as SalesBody : body;
-      // The live service selects format from the query string; POST body format is ignored.
       const format = (query.format ?? "xml").toLowerCase();
       const isXml = format === "xml";
       const send = (status: number, data: Record<string, unknown>) => {
@@ -65,10 +62,8 @@ export async function registerSalesApiRoutes(app: FastifyInstance) {
 
       const credentials = credentialsFrom(request, body);
       if (!credentials.username || !credentials.password) return send(401, { success: false, error: { message: "Authentication required" } });
-      const [user] = await db.select({ id: users.id, passwordHash: users.passwordHash, role: users.role })
-        .from(users).where(and(eq(users.username, credentials.username), isNull(users.deletedAt))).limit(1);
-      // API credentials use a username and password. Accept secure Argon2 hashes only;
-      // do not reintroduce the legacy deployment's plaintext password comparison.
+      const user = await User.findOne({ username: credentials.username, deletedAt: null })
+        .lean<{ passwordHash: string; role: string }>();
       const argon2 = await import("argon2");
       if (!user || !user.passwordHash.startsWith("$argon2") || !(await argon2.verify(user.passwordHash, credentials.password))) {
         return send(401, { success: false, error: { message: "Invalid credentials" } });
@@ -76,20 +71,9 @@ export async function registerSalesApiRoutes(app: FastifyInstance) {
 
       const parsedVin = vinSchema.safeParse(params.vin);
       if (!parsedVin.success) return send(400, { success: false, error: { message: "A valid 17-character VIN is required" } });
-      const [invoice] = await db.select({
-        invoiceNumber: invoices.invoiceNumber,
-        vin: invoices.vin,
-        buyerCompany: invoices.buyerCompany,
-        buyerRfc: invoices.buyerRfc,
-        buyerAddress: invoices.buyerAddress,
-        buyerCity: invoices.buyerCity,
-        saleDate: invoices.saleDate,
-        totalSales: invoices.totalSales,
-        dataAnalyst: invoices.dataAnalyst,
-        year: invoices.year,
-        make: invoices.make,
-        model: invoices.model,
-      }).from(invoices).where(eq(invoices.vin, parsedVin.data)).limit(1);
+      const invoice: any = await Invoice.findOne({ vin: parsedVin.data })
+        .select("_id vin buyerCompany buyerRfc buyerAddress buyerCity saleDate totalSales dataAnalyst year make model")
+        .lean();
       if (!invoice) return send(404, { success: false, error: { message: "Vehicle details not found", vin: parsedVin.data } });
 
       return send(200, {
@@ -97,7 +81,7 @@ export async function registerSalesApiRoutes(app: FastifyInstance) {
         user_status: user.role,
         query_timestamp: new Date().toISOString().slice(0, 19).replace("T", " "),
         vehicle_details: {
-          Invoice_Number: invoice.invoiceNumber,
+          Invoice_Number: invoice._id,
           Full_Vin: invoice.vin,
           Year: invoice.year,
           Make: invoice.make,

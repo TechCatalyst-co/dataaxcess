@@ -32,7 +32,7 @@ export const vinSchema = z
   .transform((v) => v.toUpperCase());
 
 export const teamUserSchema = z.object({
-  id: z.number().int().positive(),
+  id: z.string(),
   username: z.string().min(1).max(50),
   fullName: z.string().min(1).max(100),
   role: roleSchema,

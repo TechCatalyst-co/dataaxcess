@@ -14,7 +14,7 @@ import { ResetPasswordForm } from './ResetPasswordForm'
 import type { UserFilters } from './types'
 
 type UserManagementProps = {
-  currentUserId?: number | null
+  currentUserId?: string | null
   onBack?: () => void
 }
 
@@ -26,8 +26,8 @@ function formatDate(value: string | null) {
 
 function roleBadge(role: 'admin' | 'agent') {
   return role === 'admin'
-    ? 'px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 text-white'
-    : 'px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700'
+    ? 'px-2 py-0.5 rounded text-xs font-bold bg-slate-900 text-white'
+    : 'px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-700'
 }
 
 export function UserManagement({ currentUserId, onBack }: UserManagementProps) {
@@ -35,11 +35,11 @@ export function UserManagement({ currentUserId, onBack }: UserManagementProps) {
   const [filters, setFilters] = useState<UserFilters>({ q: '', role: 'all' })
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<TeamUser | null>(null)
-  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [usernameToDelete, setUsernameToDelete] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false)
-  const [resetPasswordUserId, setResetPasswordUserId] = useState<number | null>(null)
+  const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null)
   const [resetPasswordError, setResetPasswordError] = useState<string | null>(null)
 
   const { data: userPage, isLoading, error, refetch } = useUsers(filters, page)
@@ -74,7 +74,7 @@ export function UserManagement({ currentUserId, onBack }: UserManagementProps) {
     setEditingUser(null)
     void refetch()
   }
-  const handleDelete = (id: number, username: string) => {
+  const handleDelete = (id: string, username: string) => {
     setPendingDeleteId(id)
     setUsernameToDelete(username)
   }
@@ -82,7 +82,7 @@ export function UserManagement({ currentUserId, onBack }: UserManagementProps) {
     setPendingDeleteId(null)
     setUsernameToDelete(null)
   }
-  const handleConfirmedDelete = async (id: number) => {
+  const handleConfirmedDelete = async (id: string) => {
     setDeleteError(null)
     try {
       await deleteUser.mutateAsync(id)
@@ -94,7 +94,7 @@ export function UserManagement({ currentUserId, onBack }: UserManagementProps) {
     }
   }
 
-  const handleResetPasswordOpen = (id: number) => {
+  const handleResetPasswordOpen = (id: string) => {
     setResetPasswordUserId(id)
     setResetPasswordOpen(true)
   }
@@ -115,7 +115,7 @@ export function UserManagement({ currentUserId, onBack }: UserManagementProps) {
     }
   }
 
-  const isOwnRow = (id: number) => currentUserId != null && id === currentUserId
+  const isOwnRow = (id: string) => currentUserId != null && id === currentUserId
 
   return (
     <div className="flex-1 p-6 bg-slate-50 overflow-y-auto font-sans text-slate-900">
@@ -183,7 +183,7 @@ export function UserManagement({ currentUserId, onBack }: UserManagementProps) {
                 <th className="py-3 px-4 text-center">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-xs">
+            <tbody className="divide-y divide-slate-100 text-sm">
               {loading && (
                 <tr><td colSpan={5} className="py-8 text-center text-slate-400">Loading team members…</td></tr>
               )}

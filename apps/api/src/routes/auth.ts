@@ -1,10 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
 import argon2 from "argon2";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { and, eq, sql } from "drizzle-orm";
+import mongoose from "mongoose";
 import { loginSchema } from "@dataaxcess/shared";
-import { db } from "../db/index.js";
-import { sessions, users } from "../db/schema.js";
+import { Session, User } from "../db/schema.js";
 import type { AuthUser } from "../types.js";
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -16,30 +15,101 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
   }, async (request, reply) => {
     const parsed = loginSchema.safeParse(request.body);
-    if (!parsed.success) return reply.code(400).send({ error: "Invalid username or password" });
+    if (!parsed.success) {
+      console.log(JSON.stringify({
+        level: "warn",
+        workflow: "auth_login",
+        step: "validation",
+        message: "Zod validation failed",
+      }));
+      return reply.code(400).send({ error: "Invalid username or password" });
+    }
 
-    const [user] = await db.select().from(users).where(eq(users.username, parsed.data.username)).limit(1);
-    if (!user || user.lockedUntil && user.lockedUntil > new Date()) {
+    const username = parsed.data.username;
+    console.log(JSON.stringify({
+      level: "info",
+      workflow: "auth_login",
+      step: "user_lookup",
+      username,
+    }));
+
+    const user = await User.findOne({ username, deletedAt: null }).lean<{ _id: { toHexString: () => string }; passwordHash: string; failedLoginAttempts: number; lockedUntil: Date | null; username: string; role: string; deletedAt: Date | null }>();
+
+    if (!user) {
+      console.log(JSON.stringify({
+        level: "warn",
+        workflow: "auth_login",
+        step: "user_lookup",
+        message: "User not found or soft-deleted",
+        username,
+      }));
       return reply.code(401).send({ error: "Invalid username or password" });
     }
-    if (!user || !(await argon2.verify(user.passwordHash, parsed.data.password))) {
-      if (user) {
-        const nextAttempts = Number(user.failedLoginAttempts) + 1;
-        const update: Record<string, unknown> = { failedLoginAttempts: nextAttempts };
-        if (nextAttempts >= 5) {
-          update.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
-        }
-        await db.update(users).set(update).where(eq(users.id, user.id));
+
+    console.log(JSON.stringify({
+      level: "debug",
+      workflow: "auth_login",
+      step: "user_lookup",
+      message: "User found",
+      userId: user._id.toHexString(),
+      username: user.username,
+      role: user.role,
+      lockedUntil: user.lockedUntil,
+      deletedAt: user.deletedAt,
+    }));
+
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      console.log(JSON.stringify({
+        level: "warn",
+        workflow: "auth_login",
+        step: "lockout_check",
+        message: "Account locked",
+        userId: user._id.toHexString(),
+        lockedUntil: user.lockedUntil,
+      }));
+      return reply.code(401).send({ error: "Invalid username or password" });
+    }
+
+    const passwordValid = await argon2.verify(user.passwordHash, parsed.data.password);
+
+    if (!passwordValid) {
+      const nextAttempts = Number(user.failedLoginAttempts) + 1;
+      const update: Record<string, unknown> = { failedLoginAttempts: nextAttempts, updatedAt: new Date() };
+      if (nextAttempts >= 5) {
+        update.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
       }
+      await User.updateOne({ _id: user._id }, update);
+
+      console.log(JSON.stringify({
+        level: "warn",
+        workflow: "auth_login",
+        step: "password_verify",
+        message: "Invalid password",
+        userId: user._id.toHexString(),
+        nextAttempts,
+        locked: nextAttempts >= 5,
+      }));
       return reply.code(401).send({ error: "Invalid username or password" });
     }
-    await db.update(users).set({ failedLoginAttempts: 0, lockedUntil: null }).where(eq(users.id, user.id));
+
+    await User.updateOne({ _id: user._id }, { failedLoginAttempts: 0, lockedUntil: null, updatedAt: new Date() });
 
     const token = randomBytes(32).toString("hex");
     const tokenHash = createHash("sha256").update(token).digest("hex");
     const expiresAt = new Date(Date.now() + sessionDurationMs);
-    await endAllSessionsForUser(user.id);
-    await db.insert(sessions).values({ id: tokenHash, userId: user.id, expiresAt, lastActivityAt: new Date() });
+    await endAllSessionsForUser(user._id.toHexString());
+    await Session.create({ _id: tokenHash, userId: user._id, expiresAt, lastActivityAt: new Date() });
+
+    console.log(JSON.stringify({
+      level: "info",
+      workflow: "auth_login",
+      step: "session_created",
+      userId: user._id.toHexString(),
+      username: user.username,
+      role: user.role,
+      tokenHash,
+      expiresAt,
+    }));
 
     reply.setCookie(cookieName, token, {
       path: "/",
@@ -48,23 +118,28 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       sameSite: "strict",
       maxAge: sessionDurationMs / 1000,
     });
-    return { user: { id: user.id, username: user.username, role: user.role }, expiresAt };
+    return { user: { id: user._id.toHexString(), username: user.username, role: user.role }, expiresAt };
   });
 
   app.post("/api/auth/logout", { preHandler: requireAuth }, async (request, reply) => {
     const token = request.cookies[cookieName];
     if (token) {
       const tokenHash = createHash("sha256").update(token).digest("hex");
-      await db.update(sessions).set({ endedAt: new Date() }).where(eq(sessions.id, tokenHash));
+      await Session.updateOne({ _id: tokenHash }, { endedAt: new Date() });
     }
     return reply.clearCookie(cookieName, { path: "/", secure: isProduction, sameSite: "strict" })
       .code(204).send();
   });
 
-  app.get("/api/auth/me", { preHandler: requireAuth }, async (request) => {
-    const [user] = await db.select({ id: users.id, username: users.username, fullName: users.fullName, role: users.role })
-      .from(users).where(eq(users.id, request.authUser!.id)).limit(1);
-    return { user };
+  app.get("/api/auth/me", { preHandler: requireAuth }, async (request, reply) => {
+    const authUserId = request.authUser!.id;
+    if (!mongoose.Types.ObjectId.isValid(authUserId)) {
+      return reply.code(400).send({ error: "Invalid user session." });
+    }
+    const user = await User.findOne({ _id: new mongoose.Types.ObjectId(authUserId) })
+      .lean<{ _id: { toHexString: () => string }; username: string; fullName: string; role: string }>();
+    if (!user) return reply.code(404).send({ error: "User not found" });
+    return { user: { id: user._id.toHexString(), username: user.username, fullName: user.fullName, role: user.role } };
   });
 }
 
@@ -79,9 +154,9 @@ export function requireRole(role: AuthUser["role"]) {
   };
 }
 
-export async function endAllSessionsForUser(userId: number) {
-  await db.update(sessions).set({ endedAt: new Date() }).where(and(
-    eq(sessions.userId, userId),
-    sql`${sessions.endedAt} IS NULL`,
-  ));
+export async function endAllSessionsForUser(userId: string) {
+  await Session.updateMany(
+    { userId: new mongoose.Types.ObjectId(userId), endedAt: null },
+    { endedAt: new Date() },
+  );
 }

@@ -1,5 +1,5 @@
 export type TeamUser = {
-  id: number
+  id: string
   username: string
   fullName: string
   role: 'admin' | 'agent'

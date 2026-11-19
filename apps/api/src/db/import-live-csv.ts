@@ -2,9 +2,8 @@ import "dotenv/config";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import argon2 from "argon2";
-import { eq } from "drizzle-orm";
-import { db, pool } from "./index.js";
-import { invoices, users } from "./schema.js";
+import { connectDb, mongoose } from "./index.js";
+import { User, Invoice } from "./schema.js";
 
 type CsvRow = Record<string, string | undefined>;
 const args = process.argv.slice(2);
@@ -21,7 +20,6 @@ if (!usersPath || !productsPath) {
   process.exitCode = 1;
 } else {
   const analystMap = new Map<string, string>([
-    // Confirmed conservative mappings; unmatched analysts remain unassigned.
     ["N.Sierra", "Nsierra"],
   ]);
   const yearCorrections = new Map<string, number>([
@@ -122,10 +120,11 @@ if (!usersPath || !productsPath) {
     let existingUsernames = new Set<string>();
     let existingInvoiceNumbers = new Set<string>();
     if (checkTarget) {
-      const existingUsers = await db.select({ username: users.username }).from(users);
+      await connectDb();
+      const existingUsers = (await User.find({}, { username: 1, _id: 0 }).lean()) as { username: string }[];
       existingUsernames = new Set(existingUsers.map((user) => user.username.toLowerCase()));
-      const existingInvoices = await db.select({ invoiceNumber: invoices.invoiceNumber }).from(invoices);
-      existingInvoiceNumbers = new Set(existingInvoices.map((invoice) => invoice.invoiceNumber));
+      const existingInvoices = (await Invoice.find({}, { _id: 1 }).lean()) as { _id: string }[];
+      existingInvoiceNumbers = new Set(existingInvoices.map((invoice) => invoice._id));
     }
     for (const row of preparedUsers) if (existingUsernames.has(row.username.toLowerCase())) row.errors.push("username already exists in target database");
     for (const row of preparedInvoices) if (existingInvoiceNumbers.has(row.invoiceNumber)) row.errors.push("invoice number already exists in target database");
@@ -145,57 +144,54 @@ if (!usersPath || !productsPath) {
     if (failures.length || !apply) {
       if (failures.length) process.exitCode = 1;
     } else {
-      await db.transaction(async (tx) => {
-        const ids = new Map<string, number>();
-        for (const row of preparedUsers) {
-          const passwordHash = await argon2.hash(row.password, { type: argon2.argon2id });
-          await tx.insert(users).values({ username: row.username, passwordHash, fullName: row.username, role: row.role });
-          const [created] = await tx.select({ id: users.id }).from(users).where(eq(users.username, row.username)).limit(1);
-          if (created) ids.set(row.username, created.id);
-        }
-        const analystToId = new Map<string, number>();
-        for (const [analyst, username] of analystMap) {
-          const id = ids.get(username);
-          if (typeof id === "number") analystToId.set(analyst, id);
-        }
-        for (const row of preparedInvoices) {
-          const source = row.row;
-          const analyst = clean(source.Data_Analyst);
-          await tx.insert(invoices).values({
-            invoiceNumber: row.invoiceNumber,
-            createdByUserId: analystToId.get(analyst) ?? null,
-            vin: row.vin,
-            year: row.year,
-            make: clean(source.Make),
-            model: clean(source.Model),
-            bodyStyle: nullable(source.BodyStyle),
-            countryOfOrigin: nullable(source.CountryOfOrigin),
-            odometer: row.odometer,
-            titleStatus: nullable(source.TitleStatus),
-            damageHistory: nullable(source.DamageHistory),
-            vehicleStock: nullable(source.Vehicle_Stock),
-            saleDate: validDate(source.Sale_Date),
-            dateOfSale: validDate(source.DateOfSale),
-            vehiclePrice: nullable(source.Vehicle_Price),
-            totalSales: nullable(source.Total_Sales),
-            auctionSource: nullable(source.AuctionSource),
-            buyerType: nullable(source.BuyerType),
-            buyerCompany: nullable(source.Buyer_Company),
-            buyerAddress: nullable(source.Buyer_Address),
-            buyerCity: nullable(source.Buyer_City),
-            buyerRfc: nullable(source.Buyer_RFC),
-            dataAnalyst: nullable(source.Data_Analyst),
-            sourceVerification: nullable(source.SourceVerification),
-            verified: nullable(source.Verified),
-          });
-        }
-      });
+      const ids = new Map<string, { toHexString: () => string }>();
+      for (const row of preparedUsers) {
+        const passwordHash = await argon2.hash(row.password, { type: argon2.argon2id });
+        const created = await User.create({ username: row.username, passwordHash, fullName: row.username, role: row.role });
+        ids.set(row.username, created._id);
+      }
+      const analystToId = new Map<string, string>();
+      for (const [analyst, username] of analystMap) {
+        const id = ids.get(username);
+        if (id) analystToId.set(analyst, id.toHexString());
+      }
+      for (const row of preparedInvoices) {
+        const source = row.row;
+        const analyst = clean(source.Data_Analyst);
+        await Invoice.create({
+          _id: row.invoiceNumber,
+          createdByUserId: analystToId.get(analyst) ? new mongoose.Types.ObjectId(analystToId.get(analyst)!) : null,
+          vin: row.vin,
+          year: row.year,
+          make: clean(source.Make),
+          model: clean(source.Model),
+          bodyStyle: nullable(source.BodyStyle),
+          countryOfOrigin: nullable(source.CountryOfOrigin),
+          odometer: row.odometer,
+          titleStatus: nullable(source.TitleStatus),
+          damageHistory: nullable(source.DamageHistory),
+          vehicleStock: nullable(source.Vehicle_Stock),
+          saleDate: validDate(source.Sale_Date),
+          dateOfSale: validDate(source.DateOfSale),
+          vehiclePrice: nullable(source.Vehicle_Price),
+          totalSales: nullable(source.Total_Sales),
+          auctionSource: nullable(source.AuctionSource),
+          buyerType: nullable(source.BuyerType),
+          buyerCompany: nullable(source.Buyer_Company),
+          buyerAddress: nullable(source.Buyer_Address),
+          buyerCity: nullable(source.Buyer_City),
+          buyerRfc: nullable(source.Buyer_RFC),
+          dataAnalyst: nullable(source.Data_Analyst),
+          sourceVerification: nullable(source.SourceVerification),
+          verified: nullable(source.Verified),
+        });
+      }
       console.log(`Imported ${preparedUsers.length} users and ${preparedInvoices.length} invoices.`);
     }
   } catch (error) {
     console.error("Live CSV import failed:", error instanceof Error ? error.message : "unknown error");
     process.exitCode = 1;
   } finally {
-    await pool.end();
+    await mongoose.disconnect();
   }
 }

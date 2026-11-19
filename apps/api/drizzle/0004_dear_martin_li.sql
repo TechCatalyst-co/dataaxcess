@@ -1,1 +1,0 @@
-CREATE INDEX `invoices_vin_idx` ON `invoices` (`vin`);

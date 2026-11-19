@@ -1,67 +1,83 @@
-import {
-  mysqlTable, int, varchar, char, text, date, decimal, datetime, timestamp, mysqlEnum, index,
-} from "drizzle-orm/mysql-core";
-import { sql } from "drizzle-orm";
+import { model, Schema } from "mongoose";
 
-export const users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
-  username: varchar("username", { length: 50 }).notNull().unique(),
-  passwordHash: varchar("password_hash", { length: 255 }).notNull(),
-  fullName: varchar("full_name", { length: 100 }).notNull(),
-  role: mysqlEnum("role", ["admin", "agent"]).notNull().default("agent"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
-  failedLoginAttempts: int("failed_login_attempts").notNull().default(0),
-  lockedUntil: datetime("locked_until"),
-  deletedAt: datetime("deleted_at"),
+export const userSchema = new Schema(
+  {
+    username: { type: String, required: true, unique: true, maxlength: 50 },
+    passwordHash: { type: String, required: true, maxlength: 255 },
+    fullName: { type: String, required: true, maxlength: 100 },
+    role: { type: String, enum: ["admin", "agent"], required: true, default: "agent" },
+    createdAt: { type: Date, required: true, default: Date.now },
+    updatedAt: { type: Date, required: true, default: Date.now },
+    failedLoginAttempts: { type: Number, required: true, default: 0 },
+    lockedUntil: { type: Date },
+    deletedAt: { type: Date },
+  },
+  { toJSON: { virtuals: true } },
+);
+
+userSchema.virtual("id").get(function (this: { _id: unknown }) {
+  return (this._id as { toHexString: () => string }).toHexString();
 });
 
-export const sessions = mysqlTable("sessions", {
-  id: char("id", { length: 64 }).primaryKey(), // SHA-256 of the cookie token
-  userId: int("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  expiresAt: datetime("expires_at").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  lastActivityAt: datetime("last_activity_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-  endedAt: datetime("ended_at"),
-}, (t) => [index("sessions_user_idx").on(t.userId)]);
+userSchema.index({ deletedAt: 1 });
 
-export const invoices = mysqlTable("invoices", {
-  // identity
-  invoiceNumber: varchar("invoice_number", { length: 50 }).primaryKey(),
-  createdByUserId: int("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
-  vin: char("vin", { length: 17 }).notNull(),
-  vehicleStock: varchar("vehicle_stock", { length: 50 }),
-  // vehicle
-  year: int("year").notNull(),
-  make: varchar("make", { length: 50 }).notNull(),
-  model: varchar("model", { length: 50 }).notNull(),
-  bodyStyle: varchar("body_style", { length: 30 }),
-  countryOfOrigin: varchar("country_of_origin", { length: 50 }),
-  odometer: int("odometer"),
-  titleStatus: varchar("title_status", { length: 30 }),
-  damageHistory: text("damage_history"),
-  // sale
-  saleDate: date("sale_date", { mode: "string" }),
-  dateOfSale: date("date_of_sale", { mode: "string" }),
-  vehiclePrice: decimal("vehicle_price", { precision: 10, scale: 2 }),
-  totalSales: decimal("total_sales", { precision: 10, scale: 2 }),
-  auctionSource: varchar("auction_source", { length: 100 }),
-  // buyer
-  buyerType: varchar("buyer_type", { length: 20 }),
-  buyerCompany: varchar("buyer_company", { length: 100 }),
-  buyerAddress: varchar("buyer_address", { length: 200 }),
-  buyerCity: varchar("buyer_city", { length: 100 }),
-  buyerRfc: varchar("buyer_rfc", { length: 20 }),
-  // verification
-  dataAnalyst: varchar("data_analyst", { length: 255 }),
-  sourceVerification: varchar("source_verification", { length: 50 }),
-  verified: varchar("verified", { length: 10 }).default("No"),
-  reportDate: datetime("report_date").notNull().default(sql`CURRENT_TIMESTAMP`),
-}, (t) => [
-  index("invoices_created_by_user_id_idx").on(t.createdByUserId),
-  index("invoices_year_idx").on(t.year),
-  index("invoices_title_status_idx").on(t.titleStatus),
-  index("invoices_date_of_sale_idx").on(t.dateOfSale),
-  index("invoices_buyer_type_idx").on(t.buyerType),
-  index("invoices_vin_idx").on(t.vin),
-]);
+export const sessionSchema = new Schema(
+  {
+    _id: { type: String, required: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    expiresAt: { type: Date, required: true },
+    createdAt: { type: Date, required: true, default: Date.now },
+    lastActivityAt: { type: Date, required: true, default: Date.now },
+    endedAt: { type: Date },
+  },
+  { toJSON: { virtuals: true } },
+);
+
+sessionSchema.index({ userId: 1 });
+
+export const invoiceSchema = new Schema(
+  {
+    _id: { type: String, required: true },
+    createdByUserId: { type: Schema.Types.ObjectId, ref: "User" },
+    vin: { type: String, required: true, maxlength: 17 },
+    vehicleStock: { type: String, maxlength: 50 },
+    year: { type: Number, required: true },
+    make: { type: String, required: true, maxlength: 50 },
+    model: { type: String, required: true, maxlength: 50 },
+    bodyStyle: { type: String, maxlength: 30 },
+    countryOfOrigin: { type: String, maxlength: 50 },
+    odometer: { type: Number },
+    titleStatus: { type: String, maxlength: 30 },
+    damageHistory: { type: String },
+    saleDate: { type: Date },
+    dateOfSale: { type: Date },
+    vehiclePrice: { type: String, maxlength: 50 },
+    totalSales: { type: String, maxlength: 50 },
+    auctionSource: { type: String, maxlength: 100 },
+    buyerType: { type: String, maxlength: 20 },
+    buyerCompany: { type: String, maxlength: 100 },
+    buyerAddress: { type: String, maxlength: 200 },
+    buyerCity: { type: String, maxlength: 100 },
+    buyerRfc: { type: String, maxlength: 20 },
+    dataAnalyst: { type: String, maxlength: 255 },
+    sourceVerification: { type: String, maxlength: 50 },
+    verified: { type: String, maxlength: 10, default: "No" },
+    reportDate: { type: Date, required: true, default: Date.now },
+  },
+  { toJSON: { virtuals: true } },
+);
+
+invoiceSchema.virtual("invoiceNumber").get(function (this: { _id: string }) {
+  return this._id;
+});
+
+invoiceSchema.index({ createdByUserId: 1 });
+invoiceSchema.index({ year: 1 });
+invoiceSchema.index({ titleStatus: 1 });
+invoiceSchema.index({ dateOfSale: 1 });
+invoiceSchema.index({ buyerType: 1 });
+invoiceSchema.index({ vin: 1 });
+
+export const User = model("User", userSchema);
+export const Session = model("Session", sessionSchema);
+export const Invoice = model("Invoice", invoiceSchema);

@@ -1,6 +1,6 @@
 import type { Role } from "@dataaxcess/shared";
 
-export type AuthUser = { id: number; username: string; role: Role };
+export type AuthUser = { id: string; username: string; role: Role };
 
 declare module "fastify" {
   interface FastifyRequest {

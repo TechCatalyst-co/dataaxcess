@@ -76,14 +76,14 @@ footer { display: flex; justify-content: space-between; max-width: 900px; margin
 table { width: 100%; border-collapse: collapse; white-space: nowrap; }
 th { height: 40px; padding: 0 15px; background: #fafbf9; color: #89958d; font-size: 9px; font-weight: 700; letter-spacing: .09em; text-align: left; text-transform: uppercase; }
 th:first-child, td:first-child { padding-left: 20px; }
-td { height: 59px; padding: 9px 15px; border-top: 1px solid #f0f2f0; color: #68766e; font-size: 11px; }
+td { height: 59px; padding: 9px 15px; border-top: 1px solid #f0f2f0; color: #68766e; font-size: 13px; }
 tbody tr:hover { background: #fbfdfb; }
-td strong { display: block; color: #34473e; font-size: 11px; font-weight: 600; }
-.cell-subtitle { display: block; margin-top: 3px; color: #87938b; font-size: 10px; }
+td strong { display: block; color: #34473e; font-size: 13px; font-weight: 600; }
+.cell-subtitle { display: block; margin-top: 3px; color: #87938b; font-size: 12px; }
 .invoice-id { color: #456b59; font-weight: 600; }
-.vin-cell { color: #748178; font-family: ui-monospace, Consolas, monospace; font-size: 10px; letter-spacing: .015em; }
+.vin-cell { color: #748178; font-family: ui-monospace, Consolas, monospace; font-size: 12px; letter-spacing: .015em; }
 .money-cell { color: #3f32c7; font-weight: 600; font-variant-numeric: tabular-nums; }
-.status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; font-size: 10px; font-weight: 600; }
+.status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; font-size: 12px; font-weight: 600; }
 .status-pill i { width: 5px; height: 5px; background: currentColor; }
 .status-pill.verified { color: #3d8061; background: #edf6ef; }
 .status-pill.pending { color: #b45309; background: #fef3c7; }

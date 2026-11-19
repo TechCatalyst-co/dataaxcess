@@ -52,7 +52,7 @@ export function UserForm({ open, onClose, onSave, editingUser }: UserFormProps) 
     }
   }
 
-  async function updateUserFlow(id: number, input: UpdateTeamUserInput) {
+  async function updateUserFlow(id: string, input: UpdateTeamUserInput) {
     try {
       const { updateUser } = await import('./api')
       const user = await updateUser(id, input)

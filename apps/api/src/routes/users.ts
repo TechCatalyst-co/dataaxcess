@@ -1,8 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import argon2 from "argon2";
-import { eq, or, like, count, desc, isNull, and } from "drizzle-orm";
-import { db } from "../db/index.js";
-import { users } from "../db/schema.js";
+import mongoose from "mongoose";
+import { User, Invoice } from "../db/schema.js";
 import {
   requireAuth,
   requireRole,
@@ -33,9 +32,9 @@ type UserQuery = {
   role?: string;
 }
 
-function toTeamUser(row: { id: number; username: string; fullName: string; role: string; createdAt: Date | string }): TeamUser {
+function toTeamUser(row: { _id: { toHexString: () => string } | string; username: string; fullName: string; role: string; createdAt: Date | string }): TeamUser {
   return {
-    id: row.id,
+    id: typeof row._id === "string" ? row._id : row._id.toHexString(),
     username: row.username,
     fullName: row.fullName,
     role: row.role as TeamUser["role"],
@@ -54,64 +53,51 @@ export async function registerUsersRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: "Invalid pagination parameters" });
     }
 
-    const conditions: Array<Parameters<typeof and>[0]> = [isNull(users.deletedAt)];
+    const conditions: Record<string, unknown> = { deletedAt: null };
     if (query) {
-      conditions.push(or(
-        like(users.username, `%${query}%`),
-        like(users.fullName, `%${query}%`),
-      ));
+      const regex = { $regex: query, $options: "i" };
+      conditions.$or = [{ username: regex }, { fullName: regex }];
     }
     if (request.query.role) {
-      conditions.push(eq(users.role, request.query.role as "admin" | "agent"));
+      conditions.role = request.query.role as "admin" | "agent";
     }
 
-    const where = and(...conditions);
-
-    const [{ total }] = await db.select({ total: count() }).from(users).where(where);
-    const rows = await db.select({
-      id: users.id,
-      username: users.username,
-      fullName: users.fullName,
-      role: users.role,
-      createdAt: users.createdAt,
-    }).from(users)
-      .where(where)
-      .orderBy(desc(users.createdAt))
+    const total = await User.countDocuments(conditions);
+    const rows = await User.find(conditions)
+      .select("username fullName role createdAt")
+      .sort({ createdAt: -1 })
       .limit(pageSize)
-      .offset((page - 1) * pageSize);
+      .skip((page - 1) * pageSize)
+      .lean({ virtuals: true });
 
     const result: UserPage = {
       items: rows.map(toTeamUser),
       page,
       pageSize,
-      total: Number(total),
-      totalPages: Math.ceil(Number(total) / pageSize),
+      total,
+      totalPages: Math.ceil(total / pageSize),
     };
     return result;
   });
 
   app.get("/api/users/count", {
-    preHandler: requireRole("admin"),
+    preHandler: requireAuth,
   }, async (request, reply) => {
-    const [{ total }] = await db.select({ total: count() }).from(users).where(isNull(users.deletedAt));
-    return reply.code(200).send({ count: Number(total) });
+    const total = await User.countDocuments({ deletedAt: null });
+    return reply.code(200).send({ count: total });
   });
 
   app.get<{ Params: { id: string } }>("/api/users/:id", {
     preHandler: requireRole("admin"),
   }, async (request, reply) => {
-    const id = Number(request.params.id);
-    if (!Number.isInteger(id) || id < 1) {
+    const id = request.params.id;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return reply.code(400).send({ error: "Invalid user id" });
     }
 
-    const [row] = await db.select({
-      id: users.id,
-      username: users.username,
-      fullName: users.fullName,
-      role: users.role,
-      createdAt: users.createdAt,
-    }).from(users).where(and(eq(users.id, id), isNull(users.deletedAt))).limit(1);
+    const row = await User.findOne({ _id: new mongoose.Types.ObjectId(id), deletedAt: null })
+      .select("username fullName role createdAt")
+      .lean({ virtuals: true });
 
     if (!row) return reply.code(404).send({ error: "User not found" });
     return toTeamUser(row);
@@ -126,23 +112,20 @@ export async function registerUsersRoutes(app: FastifyInstance) {
     const input = parsed.data as CreateTeamUserInput;
     try {
       const passwordHash = await argon2.hash(input.password, { type: argon2.argon2id });
-      await db.insert(users).values({
+      await User.create({
         username: input.username,
         fullName: input.fullName,
         passwordHash,
         role: input.role,
       });
-      const [row] = await db.select({
-        id: users.id,
-        username: users.username,
-        fullName: users.fullName,
-        role: users.role,
-        createdAt: users.createdAt,
-      }).from(users).where(eq(users.username, input.username)).limit(1);
+      const row = await User.findOne({ username: input.username })
+        .select("username fullName role createdAt")
+        .lean({ virtuals: true });
+      if (!row) return reply.code(500).send({ error: "Failed to create user" });
       return reply.code(201).send(toTeamUser(row));
     } catch (error) {
-      const dbError = error as { code?: string; errno?: number };
-      if (dbError.code === "ER_DUP_ENTRY" || dbError.errno === 1062) {
+      const dbError = error as { code?: number; errno?: number };
+      if (dbError.code === 11000) {
         return reply.code(409).send({ error: "A user with this username already exists." });
       }
       throw error;
@@ -152,8 +135,8 @@ export async function registerUsersRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string }; Body: unknown }>("/api/users/:id", {
     preHandler: requireRole("admin"),
   }, async (request, reply) => {
-    const id = Number(request.params.id);
-    if (!Number.isInteger(id) || id < 1) {
+    const id = request.params.id;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return reply.code(400).send({ error: "Invalid user id" });
     }
 
@@ -162,26 +145,23 @@ export async function registerUsersRoutes(app: FastifyInstance) {
 
     const input = parsed.data as UpdateTeamUserInput;
 
-    const [existing] = await db.select({ id: users.id }).from(users).where(and(
-      eq(users.id, id),
-      isNull(users.deletedAt),
-    )).limit(1);
+    const existing = await User.findOne({ _id: new mongoose.Types.ObjectId(id), deletedAt: null }).lean();
     if (!existing) return reply.code(404).send({ error: "User not found" });
 
     try {
-      await db.update(users).set(input).where(eq(users.id, id));
+      await User.updateOne(
+        { _id: new mongoose.Types.ObjectId(id) },
+        { ...input, updatedAt: new Date() },
+      );
       await endAllSessionsForUser(id);
-      const [row] = await db.select({
-        id: users.id,
-        username: users.username,
-        fullName: users.fullName,
-        role: users.role,
-        createdAt: users.createdAt,
-      }).from(users).where(eq(users.id, id)).limit(1);
+      const row = await User.findOne({ _id: new mongoose.Types.ObjectId(id) })
+        .select("username fullName role createdAt")
+        .lean({ virtuals: true });
+      if (!row) return reply.code(404).send({ error: "User not found" });
       return toTeamUser(row);
     } catch (error) {
-      const dbError = error as { code?: string; errno?: number };
-      if (dbError.code === "ER_DUP_ENTRY" || dbError.errno === 1062) {
+      const dbError = error as { code?: number; errno?: number };
+      if (dbError.code === 11000) {
         return reply.code(409).send({ error: "A user with this username already exists." });
       }
       throw error;
@@ -191,23 +171,20 @@ export async function registerUsersRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string }; Body: unknown }>("/api/users/:id/password", {
     preHandler: requireRole("admin"),
   }, async (request, reply) => {
-    const id = Number(request.params.id);
-    if (!Number.isInteger(id) || id < 1) {
+    const id = request.params.id;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return reply.code(400).send({ error: "Invalid user id" });
     }
 
     const parsed = resetPasswordSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: "Password must be at least 12 characters." });
 
-    const [existing] = await db.select({ id: users.id }).from(users).where(and(
-      eq(users.id, id),
-      isNull(users.deletedAt),
-    )).limit(1);
+    const existing = await User.findOne({ _id: new mongoose.Types.ObjectId(id), deletedAt: null }).lean();
     if (!existing) return reply.code(404).send({ error: "User not found" });
 
     try {
       const passwordHash = await argon2.hash(parsed.data.password, { type: argon2.argon2id });
-      await db.update(users).set({ passwordHash }).where(eq(users.id, id));
+      await User.updateOne({ _id: new mongoose.Types.ObjectId(id) }, { passwordHash, updatedAt: new Date() });
       await endAllSessionsForUser(id);
       return reply.code(204).send();
     } catch (error) {
@@ -218,8 +195,8 @@ export async function registerUsersRoutes(app: FastifyInstance) {
   app.delete<{ Params: { id: string } }>("/api/users/:id", {
     preHandler: requireRole("admin"),
   }, async (request, reply) => {
-    const id = Number(request.params.id);
-    if (!Number.isInteger(id) || id < 1) {
+    const id = request.params.id;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return reply.code(400).send({ error: "Invalid user id" });
     }
 
@@ -227,13 +204,11 @@ export async function registerUsersRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: "You cannot remove your own account." });
     }
 
-    const [existing] = await db.select({ id: users.id }).from(users).where(and(
-      eq(users.id, id),
-      isNull(users.deletedAt),
-    )).limit(1);
+    const existing = await User.findOne({ _id: new mongoose.Types.ObjectId(id), deletedAt: null }).lean();
     if (!existing) return reply.code(404).send({ error: "User not found" });
 
-    await db.update(users).set({ deletedAt: new Date() }).where(eq(users.id, id));
+    await User.updateOne({ _id: new mongoose.Types.ObjectId(id) }, { deletedAt: new Date(), updatedAt: new Date() });
+    await Invoice.updateMany({ createdByUserId: new mongoose.Types.ObjectId(id) }, { createdByUserId: null });
     return reply.code(204).send();
   });
 }

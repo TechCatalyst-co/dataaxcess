@@ -3,7 +3,7 @@ import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
-import { pool } from "./db/index.js";
+import { connectDb, mongoose } from "./db/index.js";
 import { registerSessionPlugin } from "./plugins/session.js";
 import { registerAuthRoutes, requireRole } from "./routes/auth.js";
 import { registerInvoiceRoutes } from "./routes/invoices.js";
@@ -34,7 +34,8 @@ await app.register(registerSalesApiRoutes);
 
 app.get("/health", async () => ({ ok: true }));
 app.get("/api/admin/check", { preHandler: requireRole("admin") }, async (request) => ({ ok: true, user: request.authUser }));
-app.addHook("onClose", async () => { await pool.end(); });
+await connectDb();
+app.addHook("onClose", async () => { await mongoose.disconnect(); });
 
 const port = Number(process.env.PORT ?? 3000);
 await app.listen({ port, host: "0.0.0.0" });

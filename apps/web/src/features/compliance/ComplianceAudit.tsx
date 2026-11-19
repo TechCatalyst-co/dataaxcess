@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchComplianceAudit, type ComplianceAuditData } from './api'
 import './compliance.css'
 
-type Props = { user: { id: number; username: string; fullName?: string; role: 'admin' | 'agent' } }
+type Props = { user: { id: string; username: string; fullName?: string; role: 'admin' | 'agent' } }
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return 'Not available'

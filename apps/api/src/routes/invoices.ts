@@ -1,35 +1,93 @@
 import type { FastifyInstance } from "fastify";
-import { count, desc, eq, like, or, sql } from "drizzle-orm";
+import mongoose from "mongoose";
 import { createInvoiceSchema } from "@dataaxcess/shared";
-import { db } from "../db/index.js";
-import { invoices, sessions, users } from "../db/schema.js";
+import { Invoice, Session, User } from "../db/schema.js";
 import { requireAuth } from "./auth.js";
 
 type InvoiceQuery = { q?: string; page?: string; pageSize?: string };
 
+const monthStart = () => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1);
+};
+
 export async function registerInvoiceRoutes(app: FastifyInstance) {
+  app.get("/api/invoices/analytics/summary", { preHandler: requireAuth }, async () => {
+    const [totals] = await Invoice.aggregate<{
+      totalClearanceValueUsd: number;
+      totalInvoices: number;
+      verifiedInvoices: number;
+    }>([
+      {
+        $group: {
+          _id: null,
+          totalClearanceValueUsd: {
+            $sum: {
+              $convert: { input: "$totalSales", to: "double", onError: 0, onNull: 0 },
+            },
+          },
+          totalInvoices: { $sum: 1 },
+          verifiedInvoices: {
+            $sum: {
+              $cond: [
+                {
+                  $eq: [
+                    {
+                      $toLower: {
+                        $convert: { input: "$verified", to: "string", onError: "", onNull: "" },
+                      },
+                    },
+                    "yes",
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ]);
+
+    const totalInvoices = totals?.totalInvoices ?? 0;
+    const verifiedInvoices = totals?.verifiedInvoices ?? 0;
+    return {
+      totalClearanceValueUsd: totals?.totalClearanceValueUsd ?? 0,
+      verifiedInvoices,
+      clearanceAccuracyPercentage: totalInvoices === 0
+        ? 0
+        : Math.round((verifiedInvoices / totalInvoices) * 1000) / 10,
+      pendingInvoices: totalInvoices - verifiedInvoices,
+    };
+  });
+
   app.get("/api/compliance/audit", { preHandler: requireAuth }, async (request, reply) => {
     const userId = request.authUser!.id;
-    const [user] = await db.select({ id: users.id, username: users.username, fullName: users.fullName, role: users.role })
-      .from(users).where(eq(users.id, userId)).limit(1);
-    const [session] = request.sessionId
-      ? await db.select({ createdAt: sessions.createdAt, lastActivityAt: sessions.lastActivityAt, expiresAt: sessions.expiresAt, endedAt: sessions.endedAt })
-        .from(sessions).where(eq(sessions.id, request.sessionId)).limit(1)
-      : [];
-    const [lastVin] = await db.select({
-      vin: invoices.vin,
-      year: invoices.year,
-      make: invoices.make,
-      model: invoices.model,
-      submittedAt: sql<string>`DATE_FORMAT(${invoices.reportDate}, '%Y-%m-%d %H:%i:%s')`,
-    })
-      .from(invoices).where(eq(invoices.createdByUserId, userId)).orderBy(desc(invoices.reportDate)).limit(1);
-    const [invoiceCounts] = await db.select({
-      total: count(),
-      verified: sql<number>`COALESCE(SUM(CASE WHEN LOWER(${invoices.verified}) = 'yes' THEN 1 ELSE 0 END), 0)`,
-      createdThisMonth: sql<number>`COALESCE(SUM(CASE WHEN ${invoices.reportDate} >= DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01') THEN 1 ELSE 0 END), 0)`,
-    }).from(invoices)
-      .where(eq(invoices.createdByUserId, userId));
+    const userRaw = await User.findOne({ _id: new mongoose.Types.ObjectId(userId) })
+      .lean<{ _id: { toHexString: () => string }; username: string; fullName: string; role: string }>();
+    if (!userRaw) return reply.code(404).send({ error: "User not found" });
+    const user = { id: userRaw._id.toHexString(), username: userRaw.username, fullName: userRaw.fullName, role: userRaw.role };
+    const session: any = request.sessionId
+      ? await Session.findOne({ _id: request.sessionId }).lean()
+      : null;
+    const lastVin: any = await Invoice.findOne({ createdByUserId: new mongoose.Types.ObjectId(userId) })
+      .sort({ reportDate: -1 })
+      .lean<{ vin: string; year: number; make: string; model: string; reportDate: Date }>();
+    const [invoiceCounts] = await Invoice.aggregate([
+      { $match: { createdByUserId: new mongoose.Types.ObjectId(userId) } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          verified: {
+            $sum: { $cond: [{ $eq: [{ $toLower: "$verified" }, "yes"] }, 1, 0] },
+          },
+          createdThisMonth: {
+            $sum: { $cond: [{ $gte: ["$reportDate", monthStart()] }, 1, 0] },
+          },
+        },
+      },
+    ]);
     if (!user) return reply.code(404).send({ error: "User not found" });
     return {
       user,
@@ -43,16 +101,16 @@ export async function registerInvoiceRoutes(app: FastifyInstance) {
       vinActivity: {
         lastVin: lastVin?.vin ?? null,
         lastVehicle: lastVin ? { year: lastVin.year, make: lastVin.make, model: lastVin.model } : null,
-        lastSubmittedAt: lastVin?.submittedAt ?? null,
-        submittedCount: Number(invoiceCounts.total),
+        lastSubmittedAt: lastVin?.reportDate ?? null,
+        submittedCount: Number(invoiceCounts?.total ?? 0),
       },
       invoiceActivity: {
-        createdThisMonth: Number(invoiceCounts.createdThisMonth),
-        pending: Number(invoiceCounts.total) - Number(invoiceCounts.verified),
-        verified: Number(invoiceCounts.verified),
-        verificationRate: Number(invoiceCounts.total) === 0
+        createdThisMonth: Number(invoiceCounts?.createdThisMonth ?? 0),
+        pending: Number(invoiceCounts?.total ?? 0) - Number(invoiceCounts?.verified ?? 0),
+        verified: Number(invoiceCounts?.verified ?? 0),
+        verificationRate: Number(invoiceCounts?.total ?? 0) === 0
           ? null
-          : Math.round((Number(invoiceCounts.verified) / Number(invoiceCounts.total)) * 100),
+          : Math.round((Number(invoiceCounts?.verified ?? 0) / Number(invoiceCounts?.total ?? 0)) * 100),
       },
     };
   });
@@ -61,13 +119,47 @@ export async function registerInvoiceRoutes(app: FastifyInstance) {
     preHandler: requireAuth,
   }, async (request, reply) => {
     const parsed = createInvoiceSchema.safeParse(request.body);
-    if (!parsed.success) return reply.code(400).send({ error: "Check the required fields and try again." });
+    if (!parsed.success) {
+      console.log(JSON.stringify({
+        level: "warn",
+        workflow: "invoice_create",
+        step: "validation",
+        message: "Zod validation failed",
+        errors: parsed.error?.flatten().fieldErrors,
+      }));
+      return reply.code(400).send({ error: "Check the required fields and try again." });
+    }
 
     const input = parsed.data;
+    const authUserId = request.authUser!.id;
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(authUserId);
+
+    console.log(JSON.stringify({
+      level: "info",
+      workflow: "invoice_create",
+      step: "input",
+      invoiceNumber: input.invoiceNumber,
+      authUserId,
+      isValidObjectId,
+      hasVin: Boolean(input.vin),
+      totalSales: input.totalSales,
+    }));
+
+    if (!isValidObjectId) {
+      console.log(JSON.stringify({
+        level: "error",
+        workflow: "invoice_create",
+        step: "objectid_guard",
+        message: "authUser.id is not a valid ObjectId hex string",
+        authUserId,
+      }));
+      return reply.code(400).send({ error: "Invalid user session." });
+    }
+
     try {
-      await db.insert(invoices).values({
-        invoiceNumber: input.invoiceNumber,
-        createdByUserId: request.authUser!.id,
+      const createInput = {
+        _id: input.invoiceNumber,
+        createdByUserId: new mongoose.Types.ObjectId(authUserId),
         vin: input.vin,
         year: input.year,
         make: input.make,
@@ -86,18 +178,46 @@ export async function registerInvoiceRoutes(app: FastifyInstance) {
         sourceVerification: "Pending",
         dataAnalyst: input.dataAnalyst || null,
         verified: "No",
-      });
+      };
+
+      console.log(JSON.stringify({
+        level: "debug",
+        workflow: "invoice_create",
+        step: "db_create",
+        createdByUserId: createInput.createdByUserId,
+      }));
+
+      await Invoice.create(createInput);
+
+      console.log(JSON.stringify({
+        level: "info",
+        workflow: "invoice_create",
+        step: "success",
+        invoiceNumber: input.invoiceNumber,
+        createdByUserId: authUserId,
+      }));
     } catch (error) {
       const err = error as any;
       const messages = [
         err?.message,
         err?.cause?.message,
         err?.causedBy?.message,
-        err?.sqlMessage,
         String(err),
       ].filter(Boolean);
       const combined = messages.join(" ").toLowerCase();
-      if (combined.includes("duplicate entry") && combined.includes("primary")) {
+
+      console.log(JSON.stringify({
+        level: "error",
+        workflow: "invoice_create",
+        step: "db_create_failed",
+        invoiceNumber: input.invoiceNumber,
+        authUserId,
+        errorCode: err?.code,
+        errorMessage: err?.message,
+        combined,
+      }));
+
+      if (err?.code === 11000 || combined.includes("duplicate key") || combined.includes("E11000")) {
         return reply.code(409).send({ error: "An invoice with this invoice number already exists." });
       }
       throw error;
@@ -116,33 +236,44 @@ export async function registerInvoiceRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: "Invalid pagination parameters" });
     }
 
-    const where = query
-      ? or(
-        like(invoices.invoiceNumber, `%${query}%`),
-        like(invoices.vin, `%${query}%`),
-        like(invoices.make, `%${query}%`),
-        like(invoices.model, `%${query}%`),
-        like(invoices.buyerCompany, `%${query}%`),
-      )
-      : undefined;
+    const where: Record<string, unknown> = {};
+    if (query) {
+      const regex = { $regex: query, $options: "i" };
+      where.$or = [
+        { _id: regex },
+        { vin: regex },
+        { make: regex },
+        { model: regex },
+        { buyerCompany: regex },
+      ];
+    }
 
-    const [{ total }] = await db.select({ total: count() }).from(invoices).where(where);
-    const rows = await db.select({
-      invoiceNumber: invoices.invoiceNumber,
-      vin: invoices.vin,
-      year: invoices.year,
-      make: invoices.make,
-      model: invoices.model,
-      buyerCompany: invoices.buyerCompany,
-      saleDate: invoices.saleDate,
-      totalSales: invoices.totalSales,
-      verified: invoices.verified,
-    }).from(invoices)
-      .where(where)
-      .orderBy(sql`${invoices.saleDate} DESC, ${invoices.invoiceNumber} DESC`)
+    const total = await Invoice.countDocuments(where);
+    const rows = await Invoice.find(where)
+      .select("_id vin year make model buyerCompany saleDate totalSales verified")
+      .sort({ saleDate: -1, _id: -1 })
       .limit(pageSize)
-      .offset((page - 1) * pageSize);
+      .skip((page - 1) * pageSize)
+      .lean();
 
-    return { items: rows, page, pageSize, total, totalPages: Math.ceil(total / pageSize) };
+    return {
+      items: rows.map((row: any) => ({
+        invoiceNumber: row._id,
+        vin: row.vin,
+        year: row.year,
+        make: row.make,
+        model: row.model,
+        buyerCompany: row.buyerCompany,
+        saleDate: row.saleDate instanceof Date
+          ? row.saleDate.toISOString().slice(0, 10)
+          : row.saleDate == null ? null : String(row.saleDate).slice(0, 10),
+        totalSales: row.totalSales == null ? null : String(row.totalSales),
+        verified: row.verified,
+      })),
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+    };
   });
 }

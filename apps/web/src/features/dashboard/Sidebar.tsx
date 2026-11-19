@@ -126,6 +126,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </button>
 
+            {userRole === 'admin' && (
+              <button
+                type="button"
+                onClick={(e) => handleLinkClick(e, 'archived_invoices')}
+                className={`flex items-center justify-between w-full px-3 py-2 text-xs font-medium transition-colors cursor-pointer ${
+                  activeNav === 'archived_invoices'
+                    ? 'bg-[#4c39f5] text-white'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h18v4.25H3zM5 8.75v10.5h14V8.75m-9 4.25h4" />
+                  </svg>
+                  <span>Archived Invoices</span>
+                </div>
+              </button>
+            )}
+
             {/* Manage Team */}
             {userRole !== 'agent' && (
               <button

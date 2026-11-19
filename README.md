@@ -10,14 +10,14 @@ DataAxcess provides a public VIN decoder and a protected portal for invoice and 
 | --- | --- |
 | Public visitor | Validate a VIN’s format, decode vehicle specifications through NHTSA vPIC, and follow the NICB VINCheck link for a separate stolen vehicle lookup |
 | Signed-in user | Create and search invoice records; review personal compliance and invoice activity |
-| Admin | Manage user accounts and access admin functions |
+| Admin | Manage user accounts and review archived invoices |
 | Sales API client | Look up invoice data by VIN using API credentials and receive XML or JSON |
 
 ## Modules
 
 - **Public VIN check** — validates 17-character VIN format in the browser and requests vehicle details from NHTSA vPIC. NICB VINCheck is an external link; stolen status is not checked by the local application.
 - **Authentication** — sign-in and sign-out, eight-hour database-backed sessions, HTTP-only cookies, Argon2 password verification, and role-based access checks.
-- **Invoice ledger** — authenticated invoice creation and searchable, paginated records.
+- **Invoice ledger** — authenticated invoice creation and searchable, paginated active records. Invoices expire after 30 days by default; admins can change the expiration period for all invoices from the archived view.
 - **Compliance activity** — per-user session status and invoice counts, verification totals, and most recent VIN activity.
 - **User management** — admin routes and UI for managing agent accounts and credentials.
 - **Sales lookup API** — VIN-based lookup of invoice data for authenticated users; supports XML and JSON responses.
@@ -149,7 +149,9 @@ Protected endpoints use the session cookie created by login. The sales lookup en
 | `GET` | `/api/auth/me` | Signed in | Current user |
 | `GET` | `/api/admin/check` | Admin | Verify administrator access |
 | `GET` | `/api/compliance/audit` | Signed in | Current user's session and invoice activity |
-| `GET`, `POST` | `/api/invoices` | Signed in | Search/list and create invoice records |
+| `GET`, `POST` | `/api/invoices` | Signed in | Search/list active invoices and create invoice records |
+| `GET` | `/api/invoices/archived` | Admin | Search and paginate archived invoices, including the current expiration period |
+| `PUT` | `/api/invoices/expiration-threshold` | Admin | Set the expiration period in days for all invoices |
 | `GET` | `/api/users/count` | Signed in | Read the aggregate registered-user count for the dashboard |
 | `/api/users` and `/api/users/:id` | Admin | View and manage user accounts; see `apps/api/src/routes/users.ts` for supported methods |
 | `GET`, `POST` | `/api/sales-api` | API credentials | VIN lookup; `format=xml` or `format=json` |

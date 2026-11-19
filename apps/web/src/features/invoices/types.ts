@@ -10,10 +10,20 @@ export type Invoice = {
   verified: string | null
 }
 
+export type ArchivedInvoice = Invoice & {
+  createdAt: string
+  expiresAt: string
+}
+
 export type InvoicePage = {
   items: Invoice[]
   page: number
   pageSize: number
   total: number
   totalPages: number
+}
+
+export type ArchivedInvoicePage = Omit<InvoicePage, 'items'> & {
+  items: ArchivedInvoice[]
+  expirationThresholdDays: number
 }

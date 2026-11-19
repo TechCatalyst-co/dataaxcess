@@ -1,8 +1,9 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import mongoose from "mongoose";
 import { createInvoiceSchema } from "@dataaxcess/shared";
-import { Invoice, Session, User } from "../db/schema.js";
-import { requireAuth } from "./auth.js";
+import { AppSetting, Invoice, Session, User } from "../db/schema.js";
+import { getInvoiceExpirationDays, invoiceExpirationCutoff, invoiceExpirationDate } from "../db/invoice-archive.js";
+import { requireAuth, requireRole } from "./auth.js";
 
 type InvoiceQuery = { q?: string; page?: string; pageSize?: string };
 
@@ -157,9 +158,11 @@ export async function registerInvoiceRoutes(app: FastifyInstance) {
     }
 
     try {
+      const reportDate = new Date();
       const createInput = {
         _id: input.invoiceNumber,
         createdByUserId: new mongoose.Types.ObjectId(authUserId),
+        reportDate,
         vin: input.vin,
         year: input.year,
         make: input.make,
@@ -226,9 +229,47 @@ export async function registerInvoiceRoutes(app: FastifyInstance) {
     return reply.code(201).send({ invoiceNumber: input.invoiceNumber });
   });
 
+  app.get<{ Querystring: InvoiceQuery }>("/api/invoices/archived", {
+    preHandler: requireRole("admin"),
+  }, async (request, reply) => {
+    const expirationDays = await getInvoiceExpirationDays();
+    const cutoff = invoiceExpirationCutoff(new Date(), expirationDays);
+    return listInvoices(request, reply, { reportDate: { $lte: cutoff } }, true, expirationDays);
+  });
+
+  app.put<{ Body: unknown }>("/api/invoices/expiration-threshold", {
+    preHandler: requireRole("admin"),
+  }, async (request, reply) => {
+    const body = request.body as { days?: unknown } | null;
+    const days = body?.days;
+    if (typeof days !== "number" || !Number.isInteger(days) || days < 1 || days > 3650) {
+      return reply.code(400).send({ error: "Expiration period must be between 1 and 3650 days." });
+    }
+
+    await AppSetting.updateOne(
+      { _id: "invoiceExpirationDays" },
+      { $set: { value: days, updatedAt: new Date() } },
+      { upsert: true },
+    );
+    return { expirationThresholdDays: days };
+  });
+
   app.get<{ Querystring: InvoiceQuery }>("/api/invoices", {
     preHandler: requireAuth,
   }, async (request, reply) => {
+    const expirationDays = await getInvoiceExpirationDays();
+    const cutoff = invoiceExpirationCutoff(new Date(), expirationDays);
+    return listInvoices(request, reply, { reportDate: { $gt: cutoff } }, false, expirationDays);
+  });
+}
+
+async function listInvoices(
+  request: FastifyRequest<{ Querystring: InvoiceQuery }>,
+  reply: FastifyReply,
+  lifecycleFilter: Record<string, unknown>,
+  includeDates: boolean,
+  expirationDays: number,
+) {
     const query = request.query.q?.trim().slice(0, 100) ?? "";
     const page = Number(request.query.page ?? 1);
     const pageSize = Number(request.query.pageSize ?? 20);
@@ -236,7 +277,7 @@ export async function registerInvoiceRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: "Invalid pagination parameters" });
     }
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { ...lifecycleFilter };
     if (query) {
       const regex = { $regex: query, $options: "i" };
       where.$or = [
@@ -250,30 +291,37 @@ export async function registerInvoiceRoutes(app: FastifyInstance) {
 
     const total = await Invoice.countDocuments(where);
     const rows = await Invoice.find(where)
-      .select("_id vin year make model buyerCompany saleDate totalSales verified")
+      .select("_id vin year make model buyerCompany saleDate totalSales verified reportDate")
       .sort({ saleDate: -1, _id: -1 })
       .limit(pageSize)
       .skip((page - 1) * pageSize)
       .lean();
 
     return {
-      items: rows.map((row: any) => ({
-        invoiceNumber: row._id,
-        vin: row.vin,
-        year: row.year,
-        make: row.make,
-        model: row.model,
-        buyerCompany: row.buyerCompany,
-        saleDate: row.saleDate instanceof Date
-          ? row.saleDate.toISOString().slice(0, 10)
-          : row.saleDate == null ? null : String(row.saleDate).slice(0, 10),
-        totalSales: row.totalSales == null ? null : String(row.totalSales),
-        verified: row.verified,
-      })),
+      items: rows.map((row: any) => {
+        const reportDate = new Date(row.reportDate);
+        return {
+          invoiceNumber: row._id,
+          vin: row.vin,
+          year: row.year,
+          make: row.make,
+          model: row.model,
+          buyerCompany: row.buyerCompany,
+          saleDate: row.saleDate instanceof Date
+            ? row.saleDate.toISOString().slice(0, 10)
+            : row.saleDate == null ? null : String(row.saleDate).slice(0, 10),
+          totalSales: row.totalSales == null ? null : String(row.totalSales),
+          verified: row.verified,
+          ...(includeDates ? {
+            createdAt: reportDate.toISOString(),
+            expiresAt: invoiceExpirationDate(reportDate, expirationDays).toISOString(),
+          } : {}),
+        };
+      }),
       page,
       pageSize,
       total,
       totalPages: Math.ceil(total / pageSize),
+      ...(includeDates ? { expirationThresholdDays: expirationDays } : {}),
     };
-  });
 }

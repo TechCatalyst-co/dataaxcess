@@ -97,4 +97,5 @@ export type DashboardNavItemId =
   | 'audit'
   | 'new_invoice'
   | 'view_all_invoices'
+  | 'archived_invoices'
   | 'manage_team'

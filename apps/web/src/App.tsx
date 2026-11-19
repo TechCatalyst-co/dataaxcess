@@ -3,6 +3,7 @@ import './App.css'
 import { getSession, signOutRequest } from './features/auth/api'
 import type { User } from './features/auth/types'
 import { InvoiceLedger } from './features/invoices/InvoiceLedger'
+import { ArchivedInvoices } from './features/invoices/ArchivedInvoices'
 import { InvoiceForm } from './features/invoices/InvoiceForm'
 import { UserManagement } from './features/users/UserManagement'
 import { Sidebar } from './features/dashboard/Sidebar'
@@ -16,7 +17,7 @@ function App() {
   const [checking, setChecking] = useState(true)
   const [message, setMessage] = useState('')
   const [signingOut, setSigningOut] = useState(false)
-  const [activeView, setActiveView] = useState<'dashboard' | 'audit' | 'list' | 'create' | 'team'>('dashboard')
+  const [activeView, setActiveView] = useState<'dashboard' | 'audit' | 'list' | 'archived' | 'create' | 'team'>('dashboard')
   const [activeNav, setActiveNav] = useState<DashboardNavItemId>('overview')
   const [unauthorizedNav, setUnauthorizedNav] = useState<DashboardNavItemId | null>(null)
 
@@ -49,6 +50,11 @@ function App() {
         return
       }
       setActiveView('team')
+      return
+    }
+    if (navId === 'archived_invoices') {
+      if (user?.role !== 'admin') return
+      setActiveView('archived')
       return
     }
     if (navId === 'overview') {
@@ -119,6 +125,27 @@ function App() {
               </button>
             </div>
             <InvoiceLedger key="ledger" />
+          </div>
+        </div>
+      )}
+
+      {activeView === 'archived' && (
+        <div className="flex-1 p-6 bg-slate-50 overflow-y-auto">
+          <div className="max-w-[1600px] mx-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-lg font-bold text-slate-900">Archived Invoices</h1>
+                <p className="text-xs text-slate-600">Invoices past their expiration date</p>
+              </div>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 py-1.5 px-3 bg-white border border-slate-300 rounded shadow-sm transition-all cursor-pointer"
+                onClick={() => { setActiveView('dashboard'); setActiveNav('overview') }}
+              >
+                ← Back to Clearance Analytics
+              </button>
+            </div>
+            <ArchivedInvoices key="archived-invoices" />
           </div>
         </div>
       )}

@@ -77,7 +77,18 @@ invoiceSchema.index({ titleStatus: 1 });
 invoiceSchema.index({ dateOfSale: 1 });
 invoiceSchema.index({ buyerType: 1 });
 invoiceSchema.index({ vin: 1 });
+invoiceSchema.index({ reportDate: 1 });
+
+export const appSettingSchema = new Schema(
+  {
+    _id: { type: String, required: true },
+    value: { type: Number, required: true },
+    updatedAt: { type: Date, required: true, default: Date.now },
+  },
+  { versionKey: false },
+);
 
 export const User = model("User", userSchema);
 export const Session = model("Session", sessionSchema);
 export const Invoice = model("Invoice", invoiceSchema);
+export const AppSetting = model("AppSetting", appSettingSchema);

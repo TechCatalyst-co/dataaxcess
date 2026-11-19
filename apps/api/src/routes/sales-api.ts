@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { XMLBuilder } from "fast-xml-parser";
 import mongoose from "mongoose";
 import { vinSchema } from "@dataaxcess/shared";
+import { getInvoiceExpirationDays, invoiceExpirationCutoff } from "../db/invoice-archive.js";
 import { User, Invoice } from "../db/schema.js";
 
 type SalesQuery = { vin?: string; format?: string; user?: string; password?: string };
@@ -71,7 +72,9 @@ export async function registerSalesApiRoutes(app: FastifyInstance) {
 
       const parsedVin = vinSchema.safeParse(params.vin);
       if (!parsedVin.success) return send(400, { success: false, error: { message: "A valid 17-character VIN is required" } });
-      const invoice: any = await Invoice.findOne({ vin: parsedVin.data })
+      const expirationDays = await getInvoiceExpirationDays();
+      const cutoff = invoiceExpirationCutoff(new Date(), expirationDays);
+      const invoice: any = await Invoice.findOne({ vin: parsedVin.data, reportDate: { $gt: cutoff } })
         .select("_id vin buyerCompany buyerRfc buyerAddress buyerCity saleDate totalSales dataAnalyst year make model")
         .lean();
       if (!invoice) return send(404, { success: false, error: { message: "Vehicle details not found", vin: parsedVin.data } });

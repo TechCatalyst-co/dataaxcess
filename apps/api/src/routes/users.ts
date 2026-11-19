@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import { User, Invoice } from "../db/schema.js";
 import {
   requireRole,
+  requireRoles,
   endAllSessionsForUser,
 } from "./auth.js";
 import {
@@ -80,7 +81,7 @@ export async function registerUsersRoutes(app: FastifyInstance) {
   });
 
   app.get("/api/users/count", {
-    preHandler: requireRole("admin"),
+    preHandler: requireRoles(["admin", "agent"]),
   }, async (request, reply) => {
     const total = await User.countDocuments({ deletedAt: null });
     return reply.code(200).send({ count: total });

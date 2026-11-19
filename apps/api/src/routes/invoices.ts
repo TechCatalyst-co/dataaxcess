@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import mongoose from "mongoose";
-import { createInvoiceSchema } from "@dataaxcess/shared";
+import { createInvoiceSchema, updateInvoiceStatusSchema } from "@dataaxcess/shared";
 import { AppSetting, Invoice, Session, User } from "../db/schema.js";
 import { getInvoiceExpirationDays, invoiceExpirationCutoff, invoiceExpirationDate } from "../db/invoice-archive.js";
 import { requireAuth, requireRole } from "./auth.js";
@@ -227,6 +227,28 @@ export async function registerInvoiceRoutes(app: FastifyInstance) {
     }
 
     return reply.code(201).send({ invoiceNumber: input.invoiceNumber });
+  });
+
+  app.put<{ Body: unknown }>("/api/invoices/status", {
+    preHandler: async (request, reply) => {
+      if (!request.authUser) return reply.code(401).send({ error: "Authentication required" });
+      if (request.authUser.role !== "admin" && request.authUser.role !== "agent") {
+        return reply.code(403).send({ error: "Insufficient permissions" });
+      }
+    },
+  }, async (request, reply) => {
+    const parsed = updateInvoiceStatusSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Provide a valid invoice number and status." });
+    }
+
+    const result = await Invoice.updateOne(
+      { _id: parsed.data.invoiceNumber },
+      { $set: { verified: parsed.data.status === "verified" ? "Yes" : "No" } },
+    );
+    if (result.matchedCount === 0) return reply.code(404).send({ error: "Invoice not found." });
+
+    return { invoiceNumber: parsed.data.invoiceNumber, status: parsed.data.status };
   });
 
   app.get<{ Querystring: InvoiceQuery }>("/api/invoices/archived", {

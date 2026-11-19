@@ -101,6 +101,12 @@ td strong { display: block; color: #34473e; font-size: 13px; font-weight: 600; }
 .expiration-modal-error { margin: 12px 0 0; color: #a33b36; font-size: 12px; }
 .expiration-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; padding-top: 16px; border-top: 1px solid #edf0ed; }
 .status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; font-size: 12px; font-weight: 600; }
+.status-pill-button { border: 0; border-radius: 0; font-family: inherit; line-height: inherit; cursor: pointer; transition: background-color .15s ease, box-shadow .15s ease; }
+.status-pill-button:hover:not(:disabled) { box-shadow: inset 0 0 0 1px currentColor; }
+.status-pill-button:focus-visible { outline: 2px solid #3f32c7; outline-offset: 2px; }
+.status-pill-button:disabled { cursor: wait; opacity: .7; }
+.status-edit-icon { width: 13px; height: 13px; opacity: .65; }
+.status-pill-button:hover:not(:disabled) .status-edit-icon { opacity: 1; }
 .status-pill i { width: 5px; height: 5px; background: currentColor; }
 .status-pill.verified { color: #3d8061; background: #edf6ef; }
 .status-pill.pending { color: #b45309; background: #fef3c7; }

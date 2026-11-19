@@ -110,7 +110,7 @@ export async function fetchOperationalAccuracy(): Promise<OperationalAccuracyDat
   const invoices = await fetchAllInvoices()
 
   const total = invoices.length
-  const verified = invoices.filter((invoice) => invoice.verified === 'yes').length
+  const verified = invoices.filter(isInvoiceVerified).length
   const pending = total - verified
 
   const complianceRate = computePercentage(verified, total)
@@ -187,12 +187,16 @@ export async function fetchTotalClearanceValueUsd(): Promise<number> {
 
 export async function fetchVerifiedInvoices(): Promise<number> {
   const invoices = await fetchAllInvoices()
-  return invoices.filter((invoice) => invoice.verified === 'yes').length
+  return invoices.filter(isInvoiceVerified).length
 }
 
 export async function fetchPendingInvoices(): Promise<number> {
   const invoices = await fetchAllInvoices()
-  return invoices.filter((invoice) => invoice.verified !== 'yes').length
+  return invoices.filter((invoice) => !isInvoiceVerified(invoice)).length
+}
+
+function isInvoiceVerified(invoice: Invoice): boolean {
+  return invoice.verified?.trim().toLowerCase() === 'yes'
 }
 
 function mapInvoiceToActivity(invoice: Invoice): SalesActivityItem {
@@ -204,6 +208,6 @@ function mapInvoiceToActivity(invoice: Invoice): SalesActivityItem {
     vehicleModel: invoice.model,
     buyer: invoice.buyerCompany ?? '',
     amount: Number(invoice.totalSales ?? 0),
-    status: invoice.verified === 'yes' ? 'VERIFIED' : 'PENDING',
+    status: isInvoiceVerified(invoice) ? 'VERIFIED' : 'PENDING',
   }
 }

@@ -25,6 +25,12 @@ export const createInvoiceSchema = z.object({
 });
 export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>;
 
+export const updateInvoiceStatusSchema = z.object({
+  invoiceNumber: z.string().trim().min(1).max(50),
+  status: z.enum(["pending", "verified"]),
+});
+export type UpdateInvoiceStatusInput = z.infer<typeof updateInvoiceStatusSchema>;
+
 export const vinSchema = z
   .string()
   .length(17)

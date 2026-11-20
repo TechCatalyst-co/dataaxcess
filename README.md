@@ -116,26 +116,28 @@ The two source files are kept in the project root's ignored `private-migration-d
 - `private-migration-data/tbl_user.csv`
 - `private-migration-data/tbl_product.csv`
 
-That folder is excluded by `.gitignore`; do not remove the ignore rule or commit these files. The user CSV contains plaintext passwords. The importer hashes each password with Argon2 and does not log or store plaintext passwords.
+That folder is excluded by `.gitignore`; do not remove the ignore rule or commit these files. The user CSV contains plaintext passwords. The importer hashes each exact password with Argon2id, preserving the user's ability to sign in with the same password; plaintext values are never logged or stored.
+
+The importer requires the `user`, `pass`, and `status` user columns and the `Invoice`, `VIN`, `Year`, `Make`, and `Model` product columns. It accepts duplicate VINs, but duplicate invoice numbers and usernames are reported and skipped because they cannot be represented safely. Missing or invalid optional dates are omitted. Missing required vehicle text uses `Unassigned`; missing or invalid year and odometer values use `0`; missing verified status uses `No`. Every invoice receives the same import-time `reportDate`, which makes it recent for the application's expiration rules. Invalid or overlong optional text is reported and uses a fallback or is truncated to the schema limit. Rows with unusable usernames/passwords or invoice numbers are skipped, while other valid rows continue to import. Review the report's `skipped` and `warnings` entries before and after applying.
 
 When preparing the production import:
 
 1. Set `MONGODB_URI` to the **production MongoDB database** in the deployment environment. Do not use your local `.env` unless you intentionally want to import into the local database.
 2. Back up the target database.
-3. From the project root, run a target check. This reads the CSVs and checks for duplicate usernames/invoice numbers in the target database; it does not write imported records:
+3. From the project root, run a target check. This validates CSV structure and checks for existing usernames/invoice numbers in the target database; it does not write imported records:
 
 ```powershell
 npm run db:import-live-csv -w @dataaxcess/api -- --users ".\private-migration-data\tbl_user.csv" --products ".\private-migration-data\tbl_product.csv" --check-target
 ```
 
-4. Confirm the report shows 8 users and 4,352 invoices importable, with no failures or existing-record conflicts. If the target check reports conflicts, stop and resolve them before importing.
+4. Review the importable counts, warnings, and skipped rows. Confirm the destination is the intended empty database and decide how to handle any reported skips before applying. The command can still import valid rows when other rows are skipped.
 5. To perform the import, run the same command with `--apply` added:
 
 ```powershell
 npm run db:import-live-csv -w @dataaxcess/api -- --users ".\private-migration-data\tbl_user.csv" --products ".\private-migration-data\tbl_product.csv" --check-target --apply
 ```
 
-The import writes users and invoices without a multi-document transaction (standalone MongoDB does not support them). Do not run the seed command afterward for an imported admin account, because the seed command resets that account's password. Afterward, verify the imported counts and test a user login. Keep the CSVs restricted until the migration is verified and any required retention is complete, then remove them securely. Never put production database credentials or these CSVs in Git.
+The import writes users and invoices without a multi-document transaction (standalone MongoDB does not support them). Existing records are not overwritten; a rerun skips records that were already inserted and continues with the remaining rows. Review the final imported counts and skipped rows. Do not run the seed command afterward for an imported admin account, because the seed command resets that account's password. Verify imported counts, run `npm run db:validate-mongo -w @dataaxcess/api`, and test a user login with their original password. Keep the CSVs restricted until the migration is verified and any required retention is complete, then remove them securely. Never put production database credentials or these CSVs in Git.
 
 ## API
 

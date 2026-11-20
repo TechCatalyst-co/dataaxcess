@@ -64,7 +64,7 @@ export async function registerSalesApiRoutes(app: FastifyInstance) {
       const credentials = credentialsFrom(request, body);
       if (!credentials.username || !credentials.password) return send(401, { success: false, error: { message: "Authentication required" } });
       const user = await User.findOne({ username: credentials.username, deletedAt: null })
-        .lean<{ passwordHash: string; role: string }>();
+        .lean<{ _id: mongoose.Types.ObjectId; passwordHash: string; role: string }>();
       const argon2 = await import("argon2");
       if (!user || !user.passwordHash.startsWith("$argon2") || !(await argon2.verify(user.passwordHash, credentials.password))) {
         return send(401, { success: false, error: { message: "Invalid credentials" } });
@@ -80,7 +80,17 @@ export async function registerSalesApiRoutes(app: FastifyInstance) {
       const cutoff = invoiceExpirationCutoff(new Date(), expirationDays);
       const invoice: any = await Invoice.findOneAndUpdate(
         { vin: parsedVin.data, reportDate: { $gt: cutoff } },
-        { $set: { verified: "Yes" } },
+        {
+          $set: { verified: "Yes" },
+          $push: {
+            verificationHistory: {
+              userId: user._id,
+              verifiedAt: new Date(),
+              source: "sales_api",
+              status: "verified",
+            },
+          },
+        },
         { new: true },
       )
         .select("_id vin buyerCompany buyerRfc buyerAddress buyerCity saleDate totalSales dataAnalyst year make model")

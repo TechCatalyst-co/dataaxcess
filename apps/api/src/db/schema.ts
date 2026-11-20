@@ -35,6 +35,16 @@ export const sessionSchema = new Schema(
 
 sessionSchema.index({ userId: 1 });
 
+const invoiceVerificationSchema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    verifiedAt: { type: Date, required: true, default: Date.now },
+    source: { type: String, enum: ["sales_api", "ledger"], required: true },
+    status: { type: String, enum: ["verified", "pending"], required: true },
+  },
+  { _id: false },
+);
+
 export const invoiceSchema = new Schema(
   {
     _id: { type: String, required: true },
@@ -62,6 +72,7 @@ export const invoiceSchema = new Schema(
     dataAnalyst: { type: String, maxlength: 255 },
     sourceVerification: { type: String, maxlength: 50 },
     verified: { type: String, maxlength: 10, default: "No" },
+    verificationHistory: { type: [invoiceVerificationSchema], default: [] },
     reportDate: { type: Date, required: true, default: Date.now },
   },
   { toJSON: { virtuals: true } },

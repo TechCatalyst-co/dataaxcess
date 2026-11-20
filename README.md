@@ -165,7 +165,7 @@ The sales API accepts HTTP Basic authentication or credentials in a form/request
 API settings are read from `apps/api/.env` during local development:
 
 - `MONGODB_URI` — MongoDB connection URI; defaults to `mongodb://localhost:27017/dataaxcess`.
-- `WEB_ORIGIN` — allowed frontend origin for credentialed CORS; defaults to `http://localhost:5173`.
+- `WEB_ORIGIN` — comma-separated exact frontend origins allowed for credentialed CORS; defaults to `http://localhost:5173`. Include the actual Vite port when it differs, such as `http://localhost:5174`.
 - `PORT` — API port; defaults to `3000`.
 - `NODE_ENV` — set to `production` for secure production cookie behavior.
 - `ADMIN_USERNAME` and `ADMIN_PASSWORD` — required by the admin seed command; password minimum is 12 characters.

@@ -11,6 +11,12 @@ import { registerUsersRoutes } from "./routes/users.js";
 import { registerSalesApiRoutes } from "./routes/sales-api.js";
 
 const isProduction = process.env.NODE_ENV === "production";
+const allowedWebOrigins = new Set(
+  (process.env.WEB_ORIGIN ?? "http://localhost:5173")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+);
 
 const app = Fastify({
   logger: true,
@@ -19,8 +25,13 @@ const app = Fastify({
 
 await app.register(helmet);
 await app.register(cors, {
-  origin: process.env.WEB_ORIGIN ?? "http://localhost:5173",
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    return callback(null, allowedWebOrigins.has(origin) ? origin : false);
+  },
   credentials: true,
+  methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 });
 await app.register(cookie, { hook: "onRequest" });
 await app.register(rateLimit, { max: 100, timeWindow: "1 minute" });

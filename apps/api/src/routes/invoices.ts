@@ -294,13 +294,57 @@ export async function registerInvoiceRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: "Provide a valid invoice number and status." });
     }
 
-    const result = await Invoice.updateOne(
-      { _id: parsed.data.invoiceNumber },
-      { $set: { verified: parsed.data.status === "verified" ? "Yes" : "No" } },
-    );
+    const update = {
+      $set: { verified: parsed.data.status === "verified" ? "Yes" : "No" },
+      $push: {
+        verificationHistory: {
+          userId: new mongoose.Types.ObjectId(request.authUser!.id),
+          verifiedAt: new Date(),
+          source: "ledger",
+          status: parsed.data.status,
+        },
+      },
+    };
+    const result = await Invoice.updateOne({ _id: parsed.data.invoiceNumber }, update);
     if (result.matchedCount === 0) return reply.code(404).send({ error: "Invoice not found." });
 
     return { invoiceNumber: parsed.data.invoiceNumber, status: parsed.data.status };
+  });
+
+  app.get<{ Params: { invoiceNumber: string } }>("/api/invoices/:invoiceNumber", {
+    preHandler: requireRoles(["admin", "agent"]),
+  }, async (request, reply) => {
+    const invoice: any = await Invoice.findById(request.params.invoiceNumber)
+      .select("_id vin year make model buyerCompany buyerRfc buyerAddress buyerCity saleDate totalSales dataAnalyst verified verificationHistory")
+      .populate({ path: "verificationHistory.userId", select: "fullName username role" })
+      .lean();
+    if (!invoice) return reply.code(404).send({ error: "Invoice not found." });
+
+    return {
+      invoiceNumber: invoice._id,
+      vin: invoice.vin,
+      year: invoice.year,
+      make: invoice.make,
+      model: invoice.model,
+      buyerCompany: invoice.buyerCompany ?? null,
+      buyerRfc: invoice.buyerRfc ?? null,
+      buyerAddress: invoice.buyerAddress ?? null,
+      buyerCity: invoice.buyerCity ?? null,
+      saleDate: invoice.saleDate ?? null,
+      totalSales: invoice.totalSales == null ? null : String(invoice.totalSales),
+      dataAnalyst: invoice.dataAnalyst ?? null,
+      verified: invoice.verified ?? "No",
+      verificationHistory: (invoice.verificationHistory ?? []).map((event: any) => ({
+        verifiedAt: event.verifiedAt,
+        source: event.source,
+        status: event.status ?? "verified",
+        user: event.userId ? {
+          fullName: event.userId.fullName,
+          username: event.userId.username,
+          role: event.userId.role,
+        } : null,
+      })),
+    };
   });
 
   app.get<{ Querystring: InvoiceQuery }>("/api/invoices/archived", {

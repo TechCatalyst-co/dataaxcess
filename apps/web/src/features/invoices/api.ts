@@ -1,5 +1,5 @@
 import type { UpdateInvoiceStatusInput } from '@dataaxcess/shared'
-import type { ArchivedInvoicePage, InvoicePage } from './types'
+import type { ArchivedInvoicePage, InvoiceDetail, InvoicePage } from './types'
 
 const apiBase = import.meta.env.VITE_API_URL ?? ''
 
@@ -10,6 +10,15 @@ export async function fetchInvoices(term: string, pageNumber: number): Promise<I
   if (response.status === 401) throw new Error('Your session has expired. Sign in again.')
   if (!response.ok) throw new Error('Could not load invoices.')
   return await response.json() as InvoicePage
+}
+
+export async function fetchInvoiceDetails(invoiceNumber: string): Promise<InvoiceDetail> {
+  const response = await fetch(`${apiBase}/api/invoices/${encodeURIComponent(invoiceNumber)}`, { credentials: 'include' })
+  if (response.status === 401) throw new Error('Your session has expired. Sign in again.')
+  if (response.status === 403) throw new Error('Invoice details are available to administrators and agents only.')
+  const data = await response.json() as InvoiceDetail & { error?: string }
+  if (!response.ok) throw new Error(data.error ?? 'Could not load invoice details.')
+  return data
 }
 
 export async function updateInvoiceStatus(input: UpdateInvoiceStatusInput): Promise<void> {

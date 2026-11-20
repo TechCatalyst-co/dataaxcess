@@ -4,6 +4,7 @@ import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import argon2 from "argon2";
 import { connectDb, mongoose } from "./index.js";
+import { defaultInvoiceExpirationDays, getInvoiceExpirationDays, invoiceExpirationCutoff } from "./invoice-archive.js";
 import { User, Invoice } from "./schema.js";
 
 type CsvRow = Record<string, string | undefined>;
@@ -155,6 +156,7 @@ if (!usersPath || !productsPath) {
       const dateOfSale = validDate(row.DateOfSale);
       if (clean(row.Sale_Date) && !saleDate) addWarning("Invalid Sale_Date omitted");
       if (clean(row.DateOfSale) && !dateOfSale) addWarning("Invalid DateOfSale omitted");
+      const ageDate = saleDate ?? dateOfSale;
       const textFields = {
         make: fallbackText(row.Make, 50, "Make"),
         model: fallbackText(row.Model, 50, "Model"),
@@ -175,7 +177,7 @@ if (!usersPath || !productsPath) {
         sourceVerification: fallbackText(row.SourceVerification, 50, "SourceVerification"),
         verified: fallbackText(row.Verified, 10, "Verified", "No"),
       };
-      return { rowNumber, invoiceNumber, vin, year, odometer, saleDate, dateOfSale, textFields, row, errors };
+      return { rowNumber, invoiceNumber, vin, year, odometer, saleDate, dateOfSale, ageDate, textFields, row, errors };
     });
 
     const duplicateValues = (values: string[]) => new Set(values.filter((value, index) => values.indexOf(value) !== index));
@@ -187,8 +189,10 @@ if (!usersPath || !productsPath) {
     let existingUsernames = new Set<string>();
     let existingInvoiceNumbers = new Set<string>();
     const userIds = new Map<string, mongoose.Types.ObjectId>();
+    let expirationDays = defaultInvoiceExpirationDays;
     if (checkTarget) {
       await connectDb();
+      expirationDays = await getInvoiceExpirationDays();
       const existingUsers = (await User.find({}, { username: 1 }).lean()) as { username: string; _id: mongoose.Types.ObjectId }[];
       existingUsernames = new Set(existingUsers.map((user) => user.username.toLowerCase()));
       for (const user of existingUsers) userIds.set(user.username.toLowerCase(), user._id);
@@ -224,6 +228,7 @@ if (!usersPath || !productsPath) {
       skipped,
     };
     const importTime = new Date();
+    const expirationCutoff = invoiceExpirationCutoff(importTime, expirationDays);
     let importedUsers = 0;
     let importedInvoices = 0;
     const failures: string[] = [];
@@ -270,7 +275,7 @@ if (!usersPath || !productsPath) {
             dataAnalyst: row.textFields.dataAnalyst,
             sourceVerification: row.textFields.sourceVerification,
             verified: row.textFields.verified,
-            reportDate: importTime,
+            reportDate: row.ageDate && row.ageDate <= expirationCutoff ? row.ageDate : importTime,
           });
           importedInvoices++;
         } catch (error) {

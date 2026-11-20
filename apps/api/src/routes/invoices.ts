@@ -30,8 +30,6 @@ export async function registerInvoiceRoutes(app: FastifyInstance) {
     }
     const toExclusive = new Date(to);
     toExclusive.setUTCDate(toExclusive.getUTCDate() + 1);
-    const expirationDays = await getInvoiceExpirationDays();
-    const cutoff = invoiceExpirationCutoff(new Date(), expirationDays);
     const [usersCount, [dashboard]] = await Promise.all([
       User.countDocuments({ deletedAt: null }),
       Invoice.aggregate<{
@@ -39,7 +37,6 @@ export async function registerInvoiceRoutes(app: FastifyInstance) {
         trend: { _id: string; count: number; latestSaleDate: Date }[];
         activity: { _id: string; saleDate?: Date; year: number; make: string; model: string; buyerCompany?: string; totalSales?: string; verified?: string }[];
       }>([
-        { $match: { reportDate: { $gt: cutoff } } },
         {
           $facet: {
             summary: [{

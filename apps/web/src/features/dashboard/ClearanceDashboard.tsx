@@ -1,14 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import type { TrendDataPoint } from './types'
-import {
-  useRegisteredUsers,
-  useTotalClearanceValue,
-  useVerifiedInvoices,
-  usePendingInvoices,
-  useVolumeTrend,
-  useOperationalAccuracy,
-  useRecentSalesActivity,
-} from './useClearanceMetrics'
+import { useDashboardSummary } from './useClearanceMetrics'
 
 export const ClearanceDashboard: React.FC<{ onViewAllInvoices?: () => void }> = ({
   onViewAllInvoices,
@@ -19,40 +11,20 @@ export const ClearanceDashboard: React.FC<{ onViewAllInvoices?: () => void }> = 
   const [hoveredTrend, setHoveredTrend] = useState<TrendDataPoint | null>(null)
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null)
 
-  const registeredUsersQuery = useRegisteredUsers()
-  const totalClearanceValueQuery = useTotalClearanceValue()
-  const verifiedInvoicesQuery = useVerifiedInvoices()
-  const pendingInvoicesQuery = usePendingInvoices()
-  const trendQuery = useVolumeTrend(fromDate, toDate)
-  const accuracyQuery = useOperationalAccuracy()
-  const activityQuery = useRecentSalesActivity(5)
+  const dashboardQuery = useDashboardSummary(fromDate, toDate)
+  const dashboard = dashboardQuery.data
+  const loading = dashboardQuery.isLoading
+  const error = dashboardQuery.error
 
-  const loading =
-    registeredUsersQuery.isLoading ||
-    totalClearanceValueQuery.isLoading ||
-    verifiedInvoicesQuery.isLoading ||
-    pendingInvoicesQuery.isLoading ||
-    trendQuery.isLoading ||
-    accuracyQuery.isLoading ||
-    activityQuery.isLoading
-  const error =
-    registeredUsersQuery.error ??
-    totalClearanceValueQuery.error ??
-    verifiedInvoicesQuery.error ??
-    pendingInvoicesQuery.error ??
-    trendQuery.error ??
-    accuracyQuery.error ??
-    activityQuery.error
-
-  const totalClearanceValue = totalClearanceValueQuery.data ?? 0
-  const verifiedInvoices = verifiedInvoicesQuery.data ?? 0
-  const pendingInvoices = pendingInvoicesQuery.data ?? 0
+  const totalClearanceValue = dashboard?.totalClearanceValueUsd ?? 0
+  const verifiedInvoices = dashboard?.verifiedInvoices ?? 0
+  const pendingInvoices = dashboard?.pendingInvoices ?? 0
   const totalInvoices = verifiedInvoices + pendingInvoices
   const clearanceAccuracyPercentage =
-    totalInvoices === 0 ? 0 : (verifiedInvoices / totalInvoices) * 100
-  const trendData = trendQuery.data ?? []
-  const accuracyItems = accuracyQuery.data?.items ?? []
-  const activityRows = activityQuery.data ?? []
+    dashboard?.clearanceAccuracyPercentage ?? (totalInvoices === 0 ? 0 : (verifiedInvoices / totalInvoices) * 100)
+  const trendData = dashboard?.trendData ?? []
+  const accuracyItems = dashboard?.accuracy.items ?? []
+  const activityRows = dashboard?.recentActivity ?? []
 
   useEffect(() => {
     const updateDateTime = () => {
@@ -157,7 +129,7 @@ export const ClearanceDashboard: React.FC<{ onViewAllInvoices?: () => void }> = 
               Registered Users
             </span>
             <div className="text-xl font-bold text-slate-900 mt-1 font-['Manrope',sans-serif] tabular-nums">
-              {registeredUsersQuery.data ?? 0}
+              {dashboard?.registeredUsers ?? 0}
             </div>
             <div className="text-xs text-slate-400 mt-1">
               Active Customs Team

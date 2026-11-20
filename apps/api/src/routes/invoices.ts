@@ -6,6 +6,7 @@ import { getInvoiceExpirationDays, invoiceExpirationCutoff, invoiceExpirationDat
 import { requireAuth, requireRole, requireRoles } from "./auth.js";
 
 type InvoiceQuery = { q?: string; page?: string; pageSize?: string };
+type DashboardQuery = { fromDate?: string; toDate?: string };
 
 const monthStart = () => {
   const now = new Date();
@@ -13,52 +14,105 @@ const monthStart = () => {
 };
 
 export async function registerInvoiceRoutes(app: FastifyInstance) {
-  app.get("/api/invoices/analytics/summary", { preHandler: requireRoles(["admin", "agent"]) }, async () => {
-    const [totals] = await Invoice.aggregate<{
-      totalClearanceValueUsd: number;
-      totalInvoices: number;
-      verifiedInvoices: number;
-    }>([
-      {
-        $group: {
-          _id: null,
-          totalClearanceValueUsd: {
-            $sum: {
-              $convert: { input: "$totalSales", to: "double", onError: 0, onNull: 0 },
-            },
-          },
-          totalInvoices: { $sum: 1 },
-          verifiedInvoices: {
-            $sum: {
-              $cond: [
-                {
-                  $eq: [
-                    {
-                      $toLower: {
-                        $convert: { input: "$verified", to: "string", onError: "", onNull: "" },
-                      },
-                    },
-                    "yes",
-                  ],
+  app.get<{ Querystring: DashboardQuery }>("/api/invoices/analytics/summary", {
+    preHandler: requireRoles(["admin", "agent"]),
+  }, async (request, reply) => {
+    const { fromDate, toDate } = request.query;
+    const parseDate = (value: string | undefined) => {
+      if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+      const date = new Date(`${value}T00:00:00.000Z`);
+      return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value ? undefined : date;
+    };
+    const from = parseDate(fromDate);
+    const to = parseDate(toDate);
+    if (!from || !to || from > to) {
+      return reply.code(400).send({ error: "Provide a valid date range using YYYY-MM-DD values." });
+    }
+    const toExclusive = new Date(to);
+    toExclusive.setUTCDate(toExclusive.getUTCDate() + 1);
+    const expirationDays = await getInvoiceExpirationDays();
+    const cutoff = invoiceExpirationCutoff(new Date(), expirationDays);
+    const [usersCount, [dashboard]] = await Promise.all([
+      User.countDocuments({ deletedAt: null }),
+      Invoice.aggregate<{
+        summary: { totalClearanceValueUsd: number; totalInvoices: number; verifiedInvoices: number }[];
+        trend: { _id: string; count: number; latestSaleDate: Date }[];
+        activity: { _id: string; saleDate?: Date; year: number; make: string; model: string; buyerCompany?: string; totalSales?: string; verified?: string }[];
+      }>([
+        { $match: { reportDate: { $gt: cutoff } } },
+        {
+          $facet: {
+            summary: [{
+              $group: {
+                _id: null,
+                totalClearanceValueUsd: {
+                  $sum: { $convert: { input: "$totalSales", to: "double", onError: 0, onNull: 0 } },
                 },
-                1,
-                0,
-              ],
-            },
+                totalInvoices: { $sum: 1 },
+                verifiedInvoices: {
+                  $sum: {
+                    $cond: [
+                      { $eq: [{ $toLower: { $convert: { input: "$verified", to: "string", onError: "", onNull: "" } } }, "yes"] },
+                      1,
+                      0,
+                    ],
+                  },
+                },
+              },
+            }],
+            trend: [
+              { $match: { saleDate: { $type: "date", $gte: from, $lt: toExclusive } } },
+              {
+                $group: {
+                  _id: { $dateToString: { format: "%Y-%m", date: "$saleDate", timezone: "UTC" } },
+                  count: { $sum: 1 },
+                  latestSaleDate: { $max: "$saleDate" },
+                },
+              },
+              { $sort: { _id: 1 } },
+            ],
+            activity: [
+              { $sort: { saleDate: -1, _id: -1 } },
+              { $limit: 5 },
+              { $project: { _id: 1, saleDate: 1, year: 1, make: 1, model: 1, buyerCompany: 1, totalSales: 1, verified: 1 } },
+            ],
           },
         },
-      },
+      ]),
     ]);
-
-    const totalInvoices = totals?.totalInvoices ?? 0;
-    const verifiedInvoices = totals?.verifiedInvoices ?? 0;
+    const summary = dashboard?.summary[0];
+    const totalInvoices = summary?.totalInvoices ?? 0;
+    const verifiedInvoices = summary?.verifiedInvoices ?? 0;
+    const clearanceAccuracyPercentage = totalInvoices === 0 ? 0 : Math.round((verifiedInvoices / totalInvoices) * 1000) / 10;
+    const latestMonth = dashboard?.trend.reduce((latest, point) => point.latestSaleDate > latest.date ? { key: point._id, date: point.latestSaleDate } : latest, { key: "", date: new Date(0) }).key;
+    const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+    const accuracyItems = [
+      { id: "anam-verified", label: "ANAM Customs Verified Clearance", percentage: clearanceAccuracyPercentage, barColor: "green" },
+      { id: "pending-approvals", label: "Pending Customs Approvals", percentage: totalInvoices === 0 ? 0 : Math.round(((totalInvoices - verifiedInvoices) / totalInvoices) * 1000) / 10, barColor: "orange" },
+      { id: "compliance-rate", label: "Compliance Verification Rate", percentage: clearanceAccuracyPercentage, barColor: "blue" },
+    ].map((item) => ({ ...item, targetLabel: `${item.percentage.toFixed(1)}%` }));
     return {
-      totalClearanceValueUsd: totals?.totalClearanceValueUsd ?? 0,
+      registeredUsers: usersCount,
+      totalClearanceValueUsd: summary?.totalClearanceValueUsd ?? 0,
       verifiedInvoices,
-      clearanceAccuracyPercentage: totalInvoices === 0
-        ? 0
-        : Math.round((verifiedInvoices / totalInvoices) * 1000) / 10,
       pendingInvoices: totalInvoices - verifiedInvoices,
+      clearanceAccuracyPercentage,
+      trendData: (dashboard?.trend ?? []).map((point) => ({
+        month: monthNames[Number(point._id.slice(5, 7)) - 1] ?? "",
+        value: point.count,
+        isActive: point._id === latestMonth,
+      })),
+      accuracy: { statusBadge: clearanceAccuracyPercentage >= 95 ? "TARGET MET" : "TARGET NOT MET", items: accuracyItems },
+      recentActivity: (dashboard?.activity ?? []).map((row) => ({
+        invoiceId: row._id,
+        date: row.saleDate instanceof Date ? row.saleDate.toISOString().slice(0, 10) : "",
+        vehicleYear: row.year,
+        vehicleMake: row.make,
+        vehicleModel: row.model,
+        buyer: row.buyerCompany ?? "",
+        amount: Number(row.totalSales ?? 0),
+        status: row.verified?.trim().toLowerCase() === "yes" ? "VERIFIED" : "PENDING",
+      })),
     };
   });
 

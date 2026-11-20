@@ -89,6 +89,17 @@ export interface SalesActivityItem {
   status: 'PENDING' | 'VERIFIED'
 }
 
+export interface DashboardSummary {
+  registeredUsers: number
+  totalClearanceValueUsd: number
+  verifiedInvoices: number
+  pendingInvoices: number
+  clearanceAccuracyPercentage: number
+  trendData: TrendDataPoint[]
+  accuracy: OperationalAccuracyData
+  recentActivity: SalesActivityItem[]
+}
+
 /**
  * Navigation item identifier with future routing targets.
  */

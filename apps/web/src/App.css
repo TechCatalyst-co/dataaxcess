@@ -82,6 +82,7 @@ td strong { display: block; color: #34473e; font-size: 13px; font-weight: 600; }
 .cell-subtitle { display: block; margin-top: 3px; color: #87938b; font-size: 12px; }
 .invoice-id { color: #456b59; font-weight: 600; }
 .vin-cell { color: #748178; font-family: ui-monospace, Consolas, monospace; font-size: 12px; letter-spacing: .015em; }
+.buyer-cell { color: #68766e; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .money-cell { color: #3f32c7; font-weight: 600; font-variant-numeric: tabular-nums; }
 .archive-toolbar-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
 .expiration-modal-backdrop { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; background: rgba(15,23,42,.48); }

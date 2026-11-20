@@ -125,7 +125,7 @@ export function ArchivedInvoices() {
           <td className="invoice-id">{invoice.invoiceNumber}</td>
           <td><strong>{invoice.year} {invoice.make}</strong><span className="cell-subtitle">{invoice.model}</span></td>
           <td className="vin-cell">{invoice.vin}</td>
-          <td>{invoice.buyerCompany || '—'}</td>
+          <td className="buyer-cell" title={invoice.buyerCompany || '—'}>{invoice.buyerCompany || '—'}</td>
           <td>{formatDate(invoice.saleDate)}</td>
           <td>{formatDate(invoice.createdAt)}</td>
           <td>{formatDate(invoice.expiresAt)}</td>
